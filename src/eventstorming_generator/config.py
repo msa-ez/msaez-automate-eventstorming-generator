@@ -2,6 +2,29 @@ import os
 
 class Config:
     @staticmethod
+    def _split_model_string(model: str, *, default_vendor: str = "openai") -> tuple[str, str]:
+        """
+        모델 문자열을 vendor/name으로 분해합니다.
+
+        지원 포맷:
+        - vendor:name[:suffix...]  (예: google_genai:gemini-flash-latest:thinking)
+        - name                    (예: gpt-4.1-2025-04-14)  -> (default_vendor, name)
+
+        Note:
+        - suffix(:thinking 등)는 name에서 제외하고 vendor/name만 반환합니다.
+        - model이 비어있으면 ValueError를 발생시킵니다.
+        """
+        if not model:
+            raise ValueError("AI model env var is not set (empty/None)")
+
+        if ":" not in model:
+            return default_vendor, model
+
+        parts = model.split(":")
+        vendor = parts[0] or default_vendor
+        name = parts[1] if len(parts) > 1 and parts[1] else model
+        return vendor, name
+    @staticmethod
     def get_requested_job_root_path() -> str:
         return f"requestedJobs/{Config.get_namespace()}"
             
@@ -99,11 +122,13 @@ class Config:
     
     @staticmethod
     def get_ai_model_vendor() -> str:
-        return Config.get_ai_model().split(':')[0]
+        vendor, _ = Config._split_model_string(Config.get_ai_model())
+        return vendor
     
     @staticmethod
     def get_ai_model_name() -> str:
-        return Config.get_ai_model().split(':')[1]
+        _, name = Config._split_model_string(Config.get_ai_model())
+        return name
     
     @staticmethod
     def get_ai_model_max_input_limit() -> int:
@@ -120,11 +145,13 @@ class Config:
     
     @staticmethod
     def get_ai_model_light_vendor() -> str:
-        return Config.get_ai_model_light().split(':')[0]
+        vendor, _ = Config._split_model_string(Config.get_ai_model_light())
+        return vendor
     
     @staticmethod
     def get_ai_model_light_name() -> str:
-        return Config.get_ai_model_light().split(':')[1]
+        _, name = Config._split_model_string(Config.get_ai_model_light())
+        return name
 
     @staticmethod
     def get_ai_model_light_max_input_limit() -> int:
