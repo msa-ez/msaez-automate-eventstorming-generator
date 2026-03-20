@@ -30,7 +30,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/shinseongjin2/msaez-automate-eventstorming-generator
+          images: ghcr.io/msa-ez/msaez-automate-eventstorming-generator
           tags: |
             type=ref,event=tag
             type=semver,pattern={{version}}
