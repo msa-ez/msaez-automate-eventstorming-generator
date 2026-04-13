@@ -271,6 +271,14 @@ class XmlBaseGenerator(ABC):
             if model_name.startswith("google_genai") and not Config.is_local_run():
                 init_kwargs["google_api_key"] = os.getenv("GOOGLE_API_KEY")
 
+            if model_name.startswith("openai"):
+                base_url = os.getenv("OPENAI_BASE_URL") or os.getenv("OPENAI_API_BASE")
+                if base_url:
+                    init_kwargs.setdefault("base_url", base_url)
+                api_key = os.getenv("OPENAI_API_KEY")
+                if api_key:
+                    init_kwargs.setdefault("api_key", api_key)
+
             self.model = init_chat_model(model_name, **init_kwargs)
             self._model_cache[cache_key] = self.model
     

@@ -1,4 +1,19 @@
+import os
+
 from langchain.chat_models import init_chat_model
+
+
+def _build_init_kwargs(model_vendor: str) -> dict:
+    init_kwargs: dict = {}
+    if model_vendor == "openai":
+        base_url = os.getenv("OPENAI_BASE_URL") or os.getenv("OPENAI_API_BASE")
+        if base_url:
+            init_kwargs["base_url"] = base_url
+        api_key = os.getenv("OPENAI_API_KEY")
+        if api_key:
+            init_kwargs["api_key"] = api_key
+    return init_kwargs
+
 
 class TokenCounter:
     """
@@ -18,7 +33,7 @@ class TokenCounter:
             계산된 토큰 수
         """
         # 모델에 따른 인코더 선택
-        model = init_chat_model(f"{model_vendor}:{model_name}")
+        model = init_chat_model(f"{model_vendor}:{model_name}", **_build_init_kwargs(model_vendor))
         return model.get_num_tokens(text)
     
     @staticmethod
