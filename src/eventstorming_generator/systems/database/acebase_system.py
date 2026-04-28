@@ -67,52 +67,82 @@ class AceBaseSystem(DatabaseSystem):
         self.access_token: Optional[str] = None
         self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=5)
         
-        # 인증 처리 (선택적 - AceBase는 인증 없이도 작동할 수 있음)
-        if username and password:
-            try:
-                self._authenticate(username, password)
-            except Exception as e:
-                # 인증 실패 시에도 계속 진행 (인증이 선택적일 수 있음)
-                LoggingUtil.info("acebase_system", f"AceBase 인증 시도 실패, 인증 없이 진행: {str(e)}")
-                self.access_token = None
+        # 자격증명 보관 (토큰 만료/403 발생 시 재인증용)
+        self._auth_username = username if (username and password) else None
+        self._auth_password = password if (username and password) else None
+
+        # 인증 처리 (선택적 - AceBase 서버가 인증 없이도 동작 가능한 경우 존재)
+        if self._auth_username and self._auth_password:
+            self._authenticate(self._auth_username, self._auth_password)
+            if not self.access_token:
+                # 자격증명을 명시적으로 제공했는데도 토큰을 받지 못하면 조용히 넘기지 않음.
+                # 이전 동작은 인증 실패를 INFO 로그로만 남기고 토큰 없이 진행하여, 이후 모든
+                # 데이터 호출이 403 으로 실패하는데 사용자에게는 원인이 드러나지 않았음.
+                raise RuntimeError(
+                    f"AceBase 인증 실패: {username}@{self.base_url} (dbname={self.dbname}). "
+                    f"ACEBASE_USERNAME / ACEBASE_PASSWORD 및 서버 주소를 확인하세요."
+                )
         else:
             # 인증 정보가 제공되지 않은 경우 (정상 동작)
             LoggingUtil.info("acebase_system", "AceBase 인증 정보 없음: 인증 없이 진행")
             self.access_token = None
-        
+
         self._initialized = True
-    
-    def _authenticate(self, username: str, password: str):
-        """AceBase 인증 (선택적)"""
-        try:
-            # 여러 가능한 인증 엔드포인트 시도
-            auth_endpoints = [
-                f"{self.base_url}/auth/signin",
-                f"{self.api_url}/auth/signin",
-                f"{self.base_url}/api/auth/signin"
-            ]
-            
-            for auth_url in auth_endpoints:
+
+    def _authenticate(self, username: str, password: str) -> None:
+        """AceBase 인증.
+
+        msa-ez/acebase 이미지(``ghcr.io/msa-ez/acebase``)는 OAuth2 라우터로
+        마운트되어 있어 사인인 경로가 ``/oauth2/{dbname}/signin`` 이다 (실측 확인).
+        표준 acebase-server 의 ``/auth/{dbname}/signin`` 등은 fallback 으로 둔다.
+        일부 버전은 바디에 ``method`` 필드를 요구하므로 ``"internal"`` 을 함께 보낸다.
+        """
+        auth_endpoints = [
+            f"{self.base_url}/oauth2/{self.dbname}/signin",  # msa-ez/acebase (실측 동작)
+            f"{self.base_url}/auth/{self.dbname}/signin",    # acebase-server 표준
+            f"{self.base_url}/auth/signin",                   # 구버전 호환
+            f"{self.api_url}/auth/signin",                    # 구버전 호환
+            f"{self.base_url}/api/auth/signin",               # 구버전 호환
+        ]
+        payload = {
+            "method": "internal",
+            "username": username,
+            "password": password,
+        }
+
+        last_error: Optional[str] = None
+        for auth_url in auth_endpoints:
+            try:
+                response = self.session.post(auth_url, json=payload, timeout=5)
+            except requests.exceptions.RequestException as e:
+                last_error = f"{auth_url}: {e}"
+                continue
+
+            if response.status_code == 200:
                 try:
-                    response = self.session.post(
-                        auth_url,
-                        json={"username": username, "password": password},
-                        timeout=5
-                    )
-                    if response.status_code == 200:
-                        result = response.json()
-                        self.access_token = result.get("accessToken") or result.get("access_token")
-                        if self.access_token:
-                            LoggingUtil.info("acebase_system", f"AceBase 인증 성공: {username}")
-                            return
-                except requests.exceptions.RequestException:
+                    result = response.json()
+                except ValueError:
+                    last_error = f"{auth_url}: 200 OK 이지만 JSON 파싱 실패"
                     continue
-            
-            # 모든 엔드포인트 실패 - 인증 없이 진행
-            raise Exception("인증 엔드포인트를 찾을 수 없습니다. 인증 없이 진행합니다.")
-        except Exception as e:
-            # 인증 실패는 예외로 전파하지 않음 (선택적 인증)
-            raise
+                token = result.get("access_token") or result.get("accessToken")
+                if token:
+                    self.access_token = token
+                    LoggingUtil.info(
+                        "acebase_system",
+                        f"AceBase 인증 성공: {username} via {auth_url}",
+                    )
+                    return
+                last_error = f"{auth_url}: 200 OK 이지만 토큰 미포함 ({result!r})"
+            else:
+                # 본문에 사유가 들어있는 경우가 많아 함께 남긴다
+                body_preview = (response.text or "")[:200]
+                last_error = f"{auth_url}: HTTP {response.status_code} {body_preview}"
+
+        LoggingUtil.warning(
+            "acebase_system",
+            f"AceBase 인증 시도 실패: {last_error}",
+        )
+        self.access_token = None
     
     @classmethod
     def initialize(cls, host: str = None, port: int = None, dbname: str = None,
@@ -179,9 +209,28 @@ class AceBaseSystem(DatabaseSystem):
         try:
             return operation_func(*args, **kwargs)
         except requests.exceptions.HTTPError as e:
-            if e.response and e.response.status_code == 404:
+            status = e.response.status_code if e.response is not None else None
+            if status == 404:
                 # 404는 정상 케이스 (경로가 아직 없음) - 에러 로그 없이 None 반환
                 return None
+            # 401/403: 토큰 만료/누락 가능성 → 1회 재인증 후 동일 작업 재시도
+            if status in (401, 403) and self._auth_username and self._auth_password:
+                LoggingUtil.info(
+                    "acebase_system",
+                    f"{operation_name} 중 인증 오류({status}) 감지, 재인증 후 재시도",
+                )
+                self.access_token = None
+                self._authenticate(self._auth_username, self._auth_password)
+                if self.access_token:
+                    try:
+                        return operation_func(*args, **kwargs)
+                    except Exception as retry_err:
+                        LoggingUtil.exception(
+                            "acebase_system",
+                            f"{operation_name} 재인증 후 재시도 실패",
+                            retry_err,
+                        )
+                        return False if operation_name.endswith(('업로드', '업데이트', '삭제', '시작', '중단')) else None
             LoggingUtil.exception("acebase_system", f"{operation_name} 실패", e)
             return False if operation_name.endswith(('업로드', '업데이트', '삭제', '시작', '중단')) else None
         except Exception as e:
