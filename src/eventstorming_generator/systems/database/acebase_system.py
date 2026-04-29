@@ -92,55 +92,59 @@ class AceBaseSystem(DatabaseSystem):
     def _authenticate(self, username: str, password: str) -> None:
         """AceBase 인증.
 
-        msa-ez/acebase 이미지(``ghcr.io/msa-ez/acebase``)는 OAuth2 라우터로
-        마운트되어 있어 사인인 경로가 ``/oauth2/{dbname}/signin`` 이다 (실측 확인).
-        표준 acebase-server 의 ``/auth/{dbname}/signin`` 등은 fallback 으로 둔다.
-        일부 버전은 바디에 ``method`` 필드를 요구하므로 ``"internal"`` 을 함께 보낸다.
+        msa-ez/acebase(``gitlab-acebase`` 포크) 의 OAuth2 라우터는 사인인 경로가
+        ``/oauth2/{dbname}/signin`` 이며, 바디에 ``method`` 필드 없이 또는
+        ``method: "account"`` 형태로 받는다 (다른 백엔드 실측 기반).
+        표준 acebase-server 의 ``/auth/{dbname}/signin`` 은 fallback 으로 둔다.
         """
         auth_endpoints = [
             f"{self.base_url}/oauth2/{self.dbname}/signin",  # msa-ez/acebase (실측 동작)
             f"{self.base_url}/auth/{self.dbname}/signin",    # acebase-server 표준
             f"{self.base_url}/auth/signin",                   # 구버전 호환
-            f"{self.api_url}/auth/signin",                    # 구버전 호환
-            f"{self.base_url}/api/auth/signin",               # 구버전 호환
         ]
-        payload = {
-            "method": "internal",
-            "username": username,
-            "password": password,
-        }
+        # gitlab-acebase 는 method 필드를 안 받거나 "account" 로 받는다.
+        # 표준 acebase-server 는 "internal" 을 받는다. 세 변형을 순차 시도한다.
+        body_variants = [
+            {"username": username, "password": password},
+            {"method": "account", "username": username, "password": password},
+            {"method": "internal", "username": username, "password": password},
+        ]
 
-        last_error: Optional[str] = None
+        attempt_errors: list[str] = []
         for auth_url in auth_endpoints:
-            try:
-                response = self.session.post(auth_url, json=payload, timeout=5)
-            except requests.exceptions.RequestException as e:
-                last_error = f"{auth_url}: {e}"
-                continue
-
-            if response.status_code == 200:
+            for body in body_variants:
+                body_label = "+".join(body.keys())
                 try:
-                    result = response.json()
-                except ValueError:
-                    last_error = f"{auth_url}: 200 OK 이지만 JSON 파싱 실패"
+                    response = self.session.post(auth_url, json=body, timeout=5)
+                except requests.exceptions.RequestException as e:
+                    attempt_errors.append(f"{auth_url} body=[{body_label}] → {e}")
                     continue
-                token = result.get("access_token") or result.get("accessToken")
-                if token:
-                    self.access_token = token
-                    LoggingUtil.info(
-                        "acebase_system",
-                        f"AceBase 인증 성공: {username} via {auth_url}",
-                    )
-                    return
-                last_error = f"{auth_url}: 200 OK 이지만 토큰 미포함 ({result!r})"
-            else:
-                # 본문에 사유가 들어있는 경우가 많아 함께 남긴다
-                body_preview = (response.text or "")[:200]
-                last_error = f"{auth_url}: HTTP {response.status_code} {body_preview}"
 
+                if response.status_code == 200:
+                    try:
+                        result = response.json()
+                    except ValueError:
+                        attempt_errors.append(f"{auth_url} body=[{body_label}] → 200 OK 이지만 JSON 파싱 실패")
+                        continue
+                    token = result.get("access_token") or result.get("accessToken")
+                    if token:
+                        self.access_token = token
+                        LoggingUtil.info(
+                            "acebase_system",
+                            f"AceBase 인증 성공: {username} via {auth_url} body=[{body_label}]",
+                        )
+                        return
+                    attempt_errors.append(f"{auth_url} body=[{body_label}] → 200 OK 이지만 토큰 키 없음: {result!r}")
+                else:
+                    body_preview = (response.text or "")[:200]
+                    attempt_errors.append(
+                        f"{auth_url} body=[{body_label}] → HTTP {response.status_code} {body_preview}"
+                    )
+
+        # 모든 (URL × body) 조합 실패 — 모든 시도 결과를 한 번에 노출
         LoggingUtil.warning(
             "acebase_system",
-            f"AceBase 인증 시도 실패: {last_error}",
+            "AceBase 인증 시도 전부 실패:\n  - " + "\n  - ".join(attempt_errors),
         )
         self.access_token = None
     
