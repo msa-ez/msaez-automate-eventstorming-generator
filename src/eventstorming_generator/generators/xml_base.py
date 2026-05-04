@@ -1,4 +1,5 @@
 import os
+import re
 import json
 from typing import Dict, List, Any, Optional, Union, Type
 from abc import ABC, abstractmethod
@@ -165,18 +166,7 @@ class XmlBaseGenerator(ABC):
             bypass_cache = False
 
         messages = self._get_messages(bypass_cache, retry_count)
-        class_name = self.__class__.__name__ 
-
-        structured_model = None
-        if class_name in self._structured_model_cache and \
-           self._structured_model_cache[class_name] is not None:
-            structured_model = self._structured_model_cache[class_name]
-        else:
-            structured_model = self.model.with_structured_output(
-                self.structured_output_class,
-                method="json_mode"
-            )
-            self._structured_model_cache[class_name] = structured_model
+        class_name = self.__class__.__name__
 
         config_metadata = {
             "generator_class": class_name,
@@ -188,20 +178,83 @@ class XmlBaseGenerator(ABC):
             metadata=config_metadata
         )
 
-        model_with_json_mode = structured_model.first
-        raw_response = model_with_json_mode.invoke(messages, config=config)
+        # NOTE: 이전엔 self.model.with_structured_output(method="json_mode") 를 사용해
+        # response_format={"type":"json_object"} 가 매 요청에 강제 부착되었다.
+        # OpenAI 호환 사내 프록시(P-GPT 등)가 response_format 을 미지원/무시할 경우
+        # 무한 hang 또는 텍스트로 응답이 와서 파서 실패가 반복되는 문제가 있어,
+        # plain invoke 로 받아 후처리 파싱하는 방식으로 회귀한다.
+        # _build_assistant_prompt 가 JSON 예시 출력을 어시스턴트 메시지로 주입하므로
+        # 모델은 표준 chat completions 만으로도 JSON 응답을 안정적으로 생성한다.
+        raw_response = self.model.invoke(messages, config=config)
 
         thinking = ""
         if self.__isThinkingAttributeExist(raw_response):
             thinking = raw_response.content[0]['thinking']
 
-        parser = structured_model.last
-        result = parser.invoke(raw_response)
+        result = self._parse_response_to_structured_output(raw_response)
         result = self._post_process_to_structured_output(result)
         return {
             "result": result,
             "thinking": thinking
         }
+
+    def _parse_response_to_structured_output(self, raw_response: BaseMessage) -> Any:
+        """LLM 응답에서 JSON 본문을 추출하여 structured_output_class 로 검증한다.
+
+        - thinking 모델: content 가 list ([{type:'thinking',...},{type:'text',text:'...'}]) → text 블록만 합침
+        - 일반 모델: content 가 str
+        - 어느 경우든 ```json``` 코드펜스 / 앞뒤 자연어 설명을 제거한다.
+        """
+        text = self._extract_text_from_response_content(raw_response.content)
+        json_str = self._extract_json_payload(text)
+        return self.structured_output_class.model_validate_json(json_str)
+
+    @staticmethod
+    def _extract_text_from_response_content(content: Any) -> str:
+        if isinstance(content, str):
+            return content
+        if isinstance(content, list):
+            parts: List[str] = []
+            for block in content:
+                if isinstance(block, dict):
+                    # thinking 블록은 본문 아님
+                    if block.get("type") == "thinking":
+                        continue
+                    if "text" in block:
+                        parts.append(str(block["text"]))
+                    elif "content" in block:
+                        parts.append(str(block["content"]))
+                else:
+                    parts.append(str(block))
+            return "\n".join(parts)
+        return str(content)
+
+    @staticmethod
+    def _extract_json_payload(text: str) -> str:
+        """평문에서 JSON 본문을 추출. 코드펜스 → JSON 시작/끝 매칭 순으로 시도."""
+        if not text:
+            return text
+        text = text.strip()
+
+        # 1) ```json ... ``` 또는 ``` ... ``` 코드펜스 우선
+        fence = re.search(r"```(?:json)?\s*\n?(.*?)```", text, flags=re.DOTALL | re.IGNORECASE)
+        if fence:
+            return fence.group(1).strip()
+
+        # 2) 첫 { 또는 [ 부터 마지막 매칭 } 또는 ] 까지 잘라낸다
+        first_obj = text.find("{")
+        first_arr = text.find("[")
+        candidates = [p for p in (first_obj, first_arr) if p >= 0]
+        if not candidates:
+            return text  # JSON 단서 없음 — 검증 단계에서 실패시켜 retry 로 위임
+
+        start = min(candidates)
+        last_obj = text.rfind("}")
+        last_arr = text.rfind("]")
+        end = max(last_obj, last_arr)
+        if end <= start:
+            return text[start:]
+        return text[start:end + 1]
     def __isThinkingAttributeExist(self, raw_response: BaseMessage) -> bool:
         return hasattr(raw_response, 'content') and \
              type(raw_response.content) == list and \
@@ -278,6 +331,12 @@ class XmlBaseGenerator(ABC):
                 api_key = os.getenv("OPENAI_API_KEY")
                 if api_key:
                     init_kwargs.setdefault("api_key", api_key)
+
+            # 기본 타임아웃 — 사내 프록시(P-GPT 등) 가 silent hang 되는 경우에도
+            # 일정 시간 안에 예외가 발생해 외부 retry 로직(retryCount 기반 temperature 상승)
+            # 으로 흐르도록 한다. 환경변수 LLM_TIMEOUT_SEC 로 덮어쓸 수 있다.
+            timeout_sec = float(os.getenv("LLM_TIMEOUT_SEC", "120"))
+            init_kwargs.setdefault("timeout", timeout_sec)
 
             self.model = init_chat_model(model_name, **init_kwargs)
             self._model_cache[cache_key] = self.model
