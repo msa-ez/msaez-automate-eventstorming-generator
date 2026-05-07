@@ -385,15 +385,32 @@ class XmlBaseGenerator(ABC):
     
     def get_token_count(self) -> int:
         """
-        현재 구축된 메세지들의 전체 토큰 수 반환
+        현재 구축된 메세지들의 전체 토큰 수 반환.
+
+        주의: langchain-openai 의 ``get_num_tokens`` 는 내부적으로 tiktoken 을 통해
+        인코딩 파일(`o200k_base.tiktoken` 등) 을 ``openaipublic.blob.core.windows.net``
+        에서 다운로드하려 시도한다. 폐쇄망 환경에서 외부 도달이 불가하면 ConnectTimeout
+        으로 worker 가 무한 재시도되며 hang 처럼 보이는 증상이 발생한다. 이미지에 미리
+        캐시되어 있어도 어떤 이유로든 캐시 미스 시 같은 문제가 재현될 수 있어, 네트워크
+        오류가 발생하면 글자 수 기반 추정치로 폴백하고 worker 흐름이 끊기지 않게 한다.
+        (대략 영문 4자/토큰 기준; 다국어/한글 혼재 시 안전하게 3자/토큰 으로 잡음)
         """
         messages = self._get_messages()
 
         total_contents = ""
         for message in messages:
             total_contents += message.content
-        
-        return self.model.get_num_tokens(total_contents)
+
+        try:
+            return self.model.get_num_tokens(total_contents)
+        except Exception as e:
+            from ..utils import LoggingUtil
+            LoggingUtil.warning(
+                "xml_base",
+                f"get_num_tokens 실패 — 글자 수 기반 추정치로 폴백합니다 (원인: {e!r})",
+            )
+            # 폐쇄망 등에서 tiktoken 캐시가 없을 때 안전 폴백
+            return max(1, len(total_contents) // 3)
     
     def get_entire_prompt(self) -> str:
         """

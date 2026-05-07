@@ -28,6 +28,15 @@ ENV PYTHONPATH=/app/src
 # (multiprocessing spawn 자식까지 환경변수가 그대로 전파됨)
 ENV PYTHONUNBUFFERED=1
 
+# tiktoken 인코딩을 빌드 시점에 미리 다운로드해 이미지에 캐싱.
+# 런타임(폐쇄망) 에서 langchain-openai 가 tiktoken.encoding_for_model 을 부를 때
+# openaipublic.blob.core.windows.net 으로 외부 다운로드를 시도하다 ConnectTimeout
+# 으로 worker 가 무한 재시도되는 증상을 방지한다.
+# (gpt-4.1/4o/4o-mini = o200k_base, gpt-4/3.5 = cl100k_base)
+ENV TIKTOKEN_CACHE_DIR=/app/.tiktoken_cache
+RUN mkdir -p ${TIKTOKEN_CACHE_DIR} \
+ && /app/.venv/bin/python -c "import tiktoken; tiktoken.get_encoding('o200k_base'); tiktoken.get_encoding('cl100k_base'); print('tiktoken encodings cached at', __import__('os').environ['TIKTOKEN_CACHE_DIR'])"
+
 # 포트 노출 (A2A 서버)
 EXPOSE 5000
 
