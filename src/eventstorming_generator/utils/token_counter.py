@@ -24,17 +24,33 @@ class TokenCounter:
     def get_token_count(text: str, model_vendor:str, model_name: str) -> int:
         """
         주어진, 텍스트의 토큰 수를 계산합니다.
-        
+
+        주의: ``model.get_num_tokens`` 는 내부적으로 tiktoken 인코딩 파일을
+        ``openaipublic.blob.core.windows.net`` 에서 다운로드하려 시도한다.
+        폐쇄망에서 외부 도달 불가 시 ConnectTimeout 으로 호출자가 재시도 hang
+        되는 문제가 있어, 네트워크 오류 발생 시 글자 수 기반 추정치로 폴백한다.
+        (xml_base.XmlBaseGenerator.get_token_count 와 같은 정책)
+
         Args:
             text: 토큰 수를 계산할 텍스트
             model_name: 토큰 계산에 사용할 모델 이름
-            
+
         Returns:
             계산된 토큰 수
         """
-        # 모델에 따른 인코더 선택
-        model = init_chat_model(f"{model_vendor}:{model_name}", **_build_init_kwargs(model_vendor))
-        return model.get_num_tokens(text)
+        try:
+            model = init_chat_model(f"{model_vendor}:{model_name}", **_build_init_kwargs(model_vendor))
+            return model.get_num_tokens(text)
+        except Exception as e:
+            try:
+                from ..utils.logging_util import LoggingUtil
+                LoggingUtil.warning(
+                    "token_counter",
+                    f"get_num_tokens 실패 — 글자 수 기반 추정치로 폴백합니다 (원인: {e!r})",
+                )
+            except Exception:
+                pass
+            return max(1, len(text) // 3)
     
     @staticmethod
     def is_within_token_limit(text: str, model_vendor:str, model_name: str, max_tokens: int) -> bool:
