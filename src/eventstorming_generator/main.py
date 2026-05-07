@@ -3,6 +3,8 @@ import concurrent.futures
 import threading
 import multiprocessing
 import os
+import sys
+import traceback
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -17,18 +19,48 @@ from eventstorming_generator.systems.database.database_factory import DatabaseFa
 # 전역 job_manager 인스턴스 (process_job_async에서 접근하기 위함)
 _current_job_manager: DecentralizedJobManager = None
 
+# multiprocessing context: fork(기본) 은 부모의 SQLite/httpx/asyncio 핸들을 자식에 그대로
+# 상속시켜 deadlock·SIGSEGV 등 silent failure 를 일으킨다 (특히 SQLiteCache).
+# spawn 은 새 Python 인터프리터를 띄워 모든 자원을 자식이 자체 초기화하므로 안전하다.
+_MP_CTX = multiprocessing.get_context("spawn")
+
+
 def _run_graph_in_subprocess(state_dict):
-    """별도 프로세스에서 graph.invoke 실행 (이벤트 루프/GIL 간섭 방지)"""
-    from eventstorming_generator.models import State
-    from eventstorming_generator.utils.job_utils import JobUtil
-    from eventstorming_generator.graph import graph
+    """별도 프로세스에서 graph.invoke 실행.
 
-    # 자식 프로세스 내에서 상태 복원 및 참조 추가
-    state = State(**state_dict)
-    state = JobUtil.add_element_ref_to_state(state)
+    spawn 모드에서는 자식이 모듈을 새로 import 하므로, 부모 상태를 그대로 잇지 않는다.
+    여기서는 자식 진입과 종료/예외 모두를 stdout 에 즉시 flush 하여
+    컨테이너 로그에서 자식이 실제로 어디까지 갔는지 보이도록 한다.
+    """
+    # 라인 버퍼링 강제 — 자식 stdout 이 block-buffer 라 어느 시점에 멈춰도 로그가 안 비치는 것 방지
+    try:
+        sys.stdout.reconfigure(line_buffering=True)
+        sys.stderr.reconfigure(line_buffering=True)
+    except Exception:
+        pass
 
-    # 실제 그래프 실행
-    graph.invoke(state, {"recursion_limit": 2147483647})
+    job_label = state_dict.get("inputs", {}).get("jobId", "<unknown>") if isinstance(state_dict, dict) else "<unknown>"
+    print(f"[subprocess] graph 자식 프로세스 진입 (job={job_label}, pid={os.getpid()})", flush=True)
+
+    try:
+        from eventstorming_generator.models import State
+        from eventstorming_generator.utils.job_utils import JobUtil
+        from eventstorming_generator.graph import graph
+
+        print(f"[subprocess] import 완료, 상태 복원 중 (job={job_label})", flush=True)
+        state = State(**state_dict)
+        state = JobUtil.add_element_ref_to_state(state)
+
+        print(f"[subprocess] graph.invoke 호출 (job={job_label})", flush=True)
+        graph.invoke(state, {"recursion_limit": 2147483647})
+        print(f"[subprocess] graph.invoke 정상 종료 (job={job_label})", flush=True)
+    except BaseException as e:
+        # 모든 예외(SystemExit/KeyboardInterrupt 포함)를 stderr 로 즉시 flush 하여 silent crash 방지
+        sys.stderr.write(f"[subprocess][ERROR] graph 자식 프로세스 예외 (job={job_label}): {e!r}\n")
+        traceback.print_exc(file=sys.stderr)
+        sys.stderr.flush()
+        # 비정상 종료 코드로 부모에게 알림 (parent 의 exitcode 검사로 RuntimeError 발생 → 로그 노출)
+        sys.exit(1)
 
 async def main():
     """메인 함수 - A2A 서버 (헬스체크 포함), Job 모니터링, 자동 스케일러 동시 시작"""
@@ -168,10 +200,11 @@ async def process_job_async(job_id: str, complete_job_func: callable):
             cancellation_event = _current_job_manager.get_job_cancellation_event(job_id)
 
         LoggingUtil.debug("main", f"Job {job_id} 데이터 로딩 및 전처리 완료, graph 실행 준비")
-        # 서브프로세스에서 그래프 실행을 비동기로 관리
-        LoggingUtil.debug("main", f"Job {job_id} graph 실행 대기 시작")
-        process = multiprocessing.Process(target=_run_graph_in_subprocess, args=(state.model_dump(),))
+        # 서브프로세스에서 그래프 실행을 비동기로 관리 (spawn 컨텍스트 사용 — 위 _MP_CTX 주석 참고)
+        LoggingUtil.debug("main", f"Job {job_id} graph 실행 대기 시작 (spawn 모드)")
+        process = _MP_CTX.Process(target=_run_graph_in_subprocess, args=(state.model_dump(),))
         process.start()
+        LoggingUtil.debug("main", f"Job {job_id} 자식 프로세스 시작됨 (pid={process.pid})")
 
         try:
             while process.is_alive():

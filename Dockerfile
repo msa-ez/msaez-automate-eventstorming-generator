@@ -24,6 +24,9 @@ RUN uv sync --frozen --no-dev
 
 # Python 경로 설정
 ENV PYTHONPATH=/app/src
+# 서브프로세스 stdout 버퍼링으로 인한 자식 로그 손실 방지
+# (multiprocessing spawn 자식까지 환경변수가 그대로 전파됨)
+ENV PYTHONUNBUFFERED=1
 
 # 포트 노출 (A2A 서버)
 EXPOSE 5000
