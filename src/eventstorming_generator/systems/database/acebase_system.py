@@ -197,6 +197,30 @@ class AceBaseSystem(DatabaseSystem):
         if self.access_token:
             headers["Authorization"] = f"Bearer {self.access_token}"
         return headers
+
+    def _measure_payload_bytes(self, payload: Dict[str, Any]) -> int:
+        """HTTP 요청 payload(JSON)의 UTF-8 바이트 수를 측정"""
+        try:
+            return len(json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
+        except Exception:
+            # 측정 실패는 기능적 실패로 간주하지 않음
+            return -1
+
+    def _log_payload_size(self, operation: str, path: str, payload: Dict[str, Any]) -> None:
+        """payload 크기를 로그로 기록하고, 임계치 초과 시 경고"""
+        payload_bytes = self._measure_payload_bytes(payload)
+        if payload_bytes < 0:
+            return
+
+        LoggingUtil.info(
+            "acebase_system",
+            f"[Payload] op={operation} path={path} bytes={payload_bytes}",
+        )
+        if payload_bytes >= 200_000:
+            LoggingUtil.warning(
+                "acebase_system",
+                f"[Payload][Large] op={operation} path={path} bytes={payload_bytes}",
+            )
     
     def _execute_with_error_handling(self, operation_name: str, operation_func: Callable, *args, **kwargs) -> Any:
         """
@@ -275,6 +299,7 @@ class AceBaseSystem(DatabaseSystem):
             sanitized_data = self.sanitize_data_for_storage(data)
             # AceBase는 {"val": {...}} 형식을 요구함
             payload = {"val": sanitized_data}
+            self._log_payload_size("set_data", path, payload)
             response = self.session.put(
                 url,
                 json=payload,
@@ -303,7 +328,8 @@ class AceBaseSystem(DatabaseSystem):
                 # 딕셔너리인 경우 sanitize 후 전달
                 sanitized_data = self.sanitize_data_for_storage(data)
                 payload = {"val": sanitized_data}
-            
+
+            self._log_payload_size("update_data", path, payload)
             response = self.session.post(
                 url,
                 json=payload,
@@ -330,6 +356,11 @@ class AceBaseSystem(DatabaseSystem):
         
         if not updates:
             return True
+
+        LoggingUtil.info(
+            "acebase_system",
+            f"[Payload] op=conditional_update_data path={path} diff_count={len(updates)}",
+        )
         
         # 각 업데이트 경로에 대해 개별적으로 업데이트
         for update_path, value in updates.items():
@@ -366,6 +397,7 @@ class AceBaseSystem(DatabaseSystem):
                     sanitized_value = process_simple_value(value)
                     url = self._get_path_url(full_path)
                     payload = {"val": sanitized_value}
+                    self._log_payload_size("conditional_update_data", full_path, payload)
                     try:
                         response = self.session.put(
                             url,

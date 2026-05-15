@@ -34,6 +34,8 @@ class JobUtil:
     # 설정값
     MAX_QUEUE_SIZE = 100  # 큐 최대 크기
     WORKER_TIMEOUT = 5.0  # 작업자 스레드 종료 대기 시간
+    MAX_LOG_UPLOAD_COUNT = 200  # 업로드 시 로그 최대 개수
+    MAX_COALESCE_DRAIN = 30  # worker가 한 번에 병합할 최대 요청 개수
 
     # 조건부 데이터 업데이트를 위한 메모리
     previous_data_job_id = None
@@ -247,12 +249,25 @@ class JobUtil:
                     if update_request is None:  # 종료 신호
                         LoggingUtil.debug("job_util", f"[Job Worker] Job ID {job_id} 종료 신호 수신")
                         break
-                    
+
+                    coalesced_request, drained_count, has_shutdown_signal = JobUtil._coalesce_update_requests(
+                        job_id=job_id,
+                        first_request=update_request,
+                        update_queue=update_queue,
+                    )
+
                     # Firebase 업데이트 실행
-                    JobUtil._execute_firebase_update(update_request)
+                    JobUtil._execute_firebase_update(coalesced_request)
                     processed_count += 1
-                    
+
+                    # 최초 요청 + 병합 과정에서 소비한 요청 모두 task_done 처리
                     update_queue.task_done()
+                    for _ in range(drained_count):
+                        update_queue.task_done()
+
+                    if has_shutdown_signal:
+                        LoggingUtil.debug("job_util", f"[Job Worker] Job ID {job_id} 병합 중 종료 신호 수신")
+                        break
                     
                 except queue.Empty:
                     # 큐가 비어있음 - shutdown_event 확인
@@ -285,6 +300,50 @@ class JobUtil:
         
         finally:
             LoggingUtil.debug("job_util", f"[Job Worker] Job ID {job_id} 업데이트 작업자 스레드 종료 (처리된 요청: {processed_count}개)")
+
+    @staticmethod
+    def _coalesce_update_requests(job_id: str, first_request: UpdateRequest, update_queue: queue.Queue) -> tuple[UpdateRequest, int, bool]:
+        """
+        연속된 update 요청을 최신 요청 하나로 병합하여 write burst를 완화
+
+        Returns:
+            tuple[UpdateRequest, int, bool]:
+                (최종 요청, 추가로 소비한 요청 수, 종료 신호 소비 여부)
+        """
+        coalesced_request = first_request
+        drained_count = 0
+        shutdown_signal_consumed = False
+
+        # update가 아닌 요청은 순서 의미가 크므로 병합하지 않음
+        if first_request.operation_type != "update":
+            return coalesced_request, drained_count, shutdown_signal_consumed
+
+        for _ in range(JobUtil.MAX_COALESCE_DRAIN):
+            try:
+                next_request = update_queue.get_nowait()
+            except queue.Empty:
+                break
+
+            drained_count += 1
+            if next_request is None:
+                shutdown_signal_consumed = True
+                break
+
+            # 같은 Job 큐 내 연속 update는 최신 state 하나만 반영
+            if next_request.operation_type == "update":
+                coalesced_request = next_request
+                continue
+
+            # update 이후 set/delete가 오면 그 요청이 더 최종 상태를 반영하므로 교체
+            coalesced_request = next_request
+            break
+
+        if drained_count > 0:
+            LoggingUtil.debug(
+                "job_util",
+                f"[Job Worker] Job ID {job_id} write coalescing 적용: drained={drained_count}",
+            )
+        return coalesced_request, drained_count, shutdown_signal_consumed
 
     @staticmethod
     def _execute_firebase_update(update_request: UpdateRequest):
@@ -339,7 +398,29 @@ class JobUtil:
         update_state = JsonUtil.convert_to_dict(JsonUtil.convert_to_json(state))
         update_state = JobUtil._delete_element_ref_from_state(update_state)
         update_state = JobUtil._delete_unused_events(update_state)
+        update_state = JobUtil._trim_logs_for_upload(update_state)
         return update_state
+
+    @staticmethod
+    def _trim_logs_for_upload(state: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        업로드 payload 과대화를 막기 위해 logs를 최근 N개로 제한
+        """
+        try:
+            outputs = state.get("outputs")
+            if not outputs:
+                return state
+
+            logs = outputs.get("logs")
+            if not isinstance(logs, list):
+                return state
+
+            if len(logs) > JobUtil.MAX_LOG_UPLOAD_COUNT:
+                outputs["logs"] = logs[-JobUtil.MAX_LOG_UPLOAD_COUNT:]
+            return state
+        except Exception as e:
+            LoggingUtil.exception("job_util", "[State Optimization Error] trim_logs_for_upload 실행 중 오류", e)
+            return state
 
     @staticmethod
     def _delete_element_ref_from_state(state):
