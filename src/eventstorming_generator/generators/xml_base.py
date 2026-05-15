@@ -1,6 +1,8 @@
 import os
 import re
 import json
+import time
+import concurrent.futures
 from typing import Dict, List, Any, Optional, Union, Type
 from abc import ABC, abstractmethod
 
@@ -11,7 +13,7 @@ from langchain_core.globals import set_llm_cache
 from langchain_core.runnables import RunnableConfig
 
 from ..models import BaseModelWithItem
-from ..utils import JsonUtil
+from ..utils import JsonUtil, LoggingUtil
 from ..config import Config
 
 
@@ -185,7 +187,7 @@ class XmlBaseGenerator(ABC):
         # plain invoke 로 받아 후처리 파싱하는 방식으로 회귀한다.
         # _build_assistant_prompt 가 JSON 예시 출력을 어시스턴트 메시지로 주입하므로
         # 모델은 표준 chat completions 만으로도 JSON 응답을 안정적으로 생성한다.
-        raw_response = self.model.invoke(messages, config=config)
+        raw_response = self._invoke_with_observability(messages, config, class_name, retry_count)
 
         thinking = ""
         if self.__isThinkingAttributeExist(raw_response):
@@ -197,6 +199,90 @@ class XmlBaseGenerator(ABC):
             "result": result,
             "thinking": thinking
         }
+
+    def _invoke_with_observability(
+        self,
+        messages: List[BaseMessage],
+        config: RunnableConfig,
+        class_name: str,
+        retry_count: int,
+    ) -> BaseMessage:
+        """LLM invoke 를 stdout 로깅 + 하드 타임아웃으로 감싼 래퍼.
+
+        - langchain 의 ``timeout`` 은 provider 마다 적용 범위가 달라 (특히 google_genai
+          처럼 무시되는 경우, 또는 streaming 경로에서 read timeout 이 안 걸리는 경우)
+          실제로는 무한 대기로 빠지는 케이스가 관측됨. 외부에서 ThreadPoolExecutor 로
+          한번 더 감싸 ``LLM_HARD_TIMEOUT_SEC`` (기본: ``LLM_TIMEOUT_SEC * 1.5``) 안에
+          반드시 예외가 나오도록 강제한다.
+        - 이번 사이클에서 invoke 가 어디서 멈췄는지(어느 모델/어느 generator/몇 번째 retry)
+          를 stdout 으로 즉시 식별 가능하도록 시작/종료/실패 시 LoggingUtil 호출.
+          실패 시점은 hang 진단의 거의 유일한 단서이므로 elapsed/원인까지 같이 남긴다.
+        """
+        soft_timeout = float(os.getenv("LLM_TIMEOUT_SEC", "120"))
+        hard_timeout_env = os.getenv("LLM_HARD_TIMEOUT_SEC")
+        hard_timeout = float(hard_timeout_env) if hard_timeout_env else soft_timeout * 1.5
+
+        prompt_chars = 0
+        for m in messages:
+            content = getattr(m, "content", "")
+            if isinstance(content, str):
+                prompt_chars += len(content)
+            elif isinstance(content, list):
+                for part in content:
+                    if isinstance(part, dict):
+                        prompt_chars += len(str(part.get("text") or part.get("content") or ""))
+                    else:
+                        prompt_chars += len(str(part))
+
+        LoggingUtil.info(
+            "xml_base",
+            f"LLM invoke start: model={self.model_name} generator={class_name} "
+            f"retry={retry_count} prompt_chars={prompt_chars} hard_timeout={hard_timeout:.0f}s",
+        )
+
+        start = time.time()
+        # ``cancel_futures=True`` 는 미실행 작업만 취소하므로 이미 실행 중인 invoke
+        # 스레드는 살아남는다. 이는 의도적: provider 라이브러리가 비협조적이어도
+        # 호출 측은 즉시 timeout 으로 빠져 다음 retry 로 갈 수 있게 한다 (orphan
+        # 스레드는 subprocess 종료 시 함께 정리됨).
+        executor = concurrent.futures.ThreadPoolExecutor(
+            max_workers=1, thread_name_prefix="llm-invoke"
+        )
+        try:
+            future = executor.submit(self.model.invoke, messages, config=config)
+            try:
+                raw_response = future.result(timeout=hard_timeout)
+            except concurrent.futures.TimeoutError:
+                elapsed = time.time() - start
+                LoggingUtil.warning(
+                    "xml_base",
+                    f"LLM invoke HARD TIMEOUT: model={self.model_name} "
+                    f"generator={class_name} retry={retry_count} "
+                    f"elapsed={elapsed:.1f}s hard_timeout={hard_timeout:.0f}s — "
+                    f"langchain timeout 이 적용되지 않은 provider/경로일 수 있음",
+                )
+                raise TimeoutError(
+                    f"LLM invoke exceeded hard timeout {hard_timeout:.0f}s "
+                    f"(model={self.model_name}, generator={class_name})"
+                )
+            except Exception as e:
+                elapsed = time.time() - start
+                LoggingUtil.warning(
+                    "xml_base",
+                    f"LLM invoke failed: model={self.model_name} generator={class_name} "
+                    f"retry={retry_count} elapsed={elapsed:.1f}s error={e!r}",
+                )
+                raise
+        finally:
+            executor.shutdown(wait=False, cancel_futures=True)
+
+        elapsed = time.time() - start
+        LoggingUtil.info(
+            "xml_base",
+            f"LLM invoke done: model={self.model_name} generator={class_name} "
+            f"retry={retry_count} elapsed={elapsed:.1f}s",
+        )
+        return raw_response
 
     def _parse_response_to_structured_output(self, raw_response: BaseMessage) -> Any:
         """LLM 응답에서 JSON 본문을 추출하여 structured_output_class 로 검증한다.
@@ -304,16 +390,19 @@ class XmlBaseGenerator(ABC):
     def set_model(self, model_name: str, model_kwargs: Optional[Dict[str, Any]] = None) -> None:
         """
         LangChain 모델 설정 (캐싱 지원)
-        
+
         Args:
             model_name: 모델 이름
             model_kwargs: 모델 파라미터
         """
         if model_kwargs is None: model_kwargs = {}
-        
+
+        # invoke 로그/타임아웃 메시지에서 어떤 모델이 hang 했는지 식별하기 위해 보관
+        self.model_name = model_name
+
         # 캐시 키 생성
         cache_key = self._get_cache_key(model_name, model_kwargs)
-        
+
         # 캐시에서 모델 확인
         if cache_key in self._model_cache:
             self.model = self._model_cache[cache_key]
@@ -404,7 +493,6 @@ class XmlBaseGenerator(ABC):
         try:
             return self.model.get_num_tokens(total_contents)
         except Exception as e:
-            from ..utils import LoggingUtil
             LoggingUtil.warning(
                 "xml_base",
                 f"get_num_tokens 실패 — 글자 수 기반 추정치로 폴백합니다 (원인: {e!r})",
