@@ -251,12 +251,27 @@ class AceBaseSystem(DatabaseSystem):
         response.raise_for_status()
         return True
 
+    def _post_value(self, path: str, value: Any, operation_name: str) -> bool:
+        """경로에 단일 값을 POST(부분 업데이트) 저장"""
+        url = self._get_path_url(path)
+        payload = {"val": self._sanitize_any_for_storage(value)}
+        self._log_payload_size(operation_name, path, payload)
+        response = self.session.post(
+            url,
+            json=payload,
+            headers=self._get_headers(),
+            timeout=30
+        )
+        response.raise_for_status()
+        return True
+
     def _write_value_with_auto_split(
         self,
         path: str,
         value: Any,
         operation_name: str,
         clear_before_split: bool = False,
+        leaf_write_method: str = "put",
     ) -> bool:
         """
         큰 payload는 dict/list 단위로 분할 저장하여 event loop burst를 완화
@@ -266,6 +281,8 @@ class AceBaseSystem(DatabaseSystem):
         payload_bytes = self._measure_payload_bytes(payload)
 
         if payload_bytes < 0 or payload_bytes <= self.split_threshold_bytes:
+            if leaf_write_method == "post":
+                return self._post_value(path, value, operation_name)
             return self._put_value(path, value, operation_name)
 
         # dict/list 대형 payload는 분할 저장
@@ -278,7 +295,12 @@ class AceBaseSystem(DatabaseSystem):
                 self.delete_data(path)
             for key, child_value in value.items():
                 child_path = f"{path}/{key}" if path else key
-                self._write_value_with_auto_split(child_path, child_value, operation_name)
+                self._write_value_with_auto_split(
+                    child_path,
+                    child_value,
+                    operation_name,
+                    leaf_write_method=leaf_write_method,
+                )
             return True
 
         if isinstance(value, list):
@@ -290,9 +312,16 @@ class AceBaseSystem(DatabaseSystem):
             self.delete_data(path)
             for idx, item in enumerate(value):
                 child_path = f"{path}/{idx}" if path else str(idx)
-                self._write_value_with_auto_split(child_path, item, operation_name)
+                self._write_value_with_auto_split(
+                    child_path,
+                    item,
+                    operation_name,
+                    leaf_write_method=leaf_write_method,
+                )
             return True
 
+        if leaf_write_method == "post":
+            return self._post_value(path, value, operation_name)
         return self._put_value(path, value, operation_name)
     
     def _execute_with_error_handling(self, operation_name: str, operation_func: Callable, *args, **kwargs) -> Any:
@@ -368,7 +397,13 @@ class AceBaseSystem(DatabaseSystem):
     def set_data(self, path: str, data: Dict[str, Any]) -> bool:
         """특정 경로에 딕셔너리 데이터를 업로드"""
         def _set_operation():
-            return self._write_value_with_auto_split(path, data, "set_data", clear_before_split=True)
+            return self._write_value_with_auto_split(
+                path,
+                data,
+                "set_data",
+                clear_before_split=True,
+                leaf_write_method="put",
+            )
         
         return self._execute_with_error_handling("데이터 업로드", _set_operation)
     
@@ -379,7 +414,12 @@ class AceBaseSystem(DatabaseSystem):
     def update_data(self, path: str, data: Any) -> bool:
         """특정 경로의 데이터를 부분 업데이트 (딕셔너리 또는 단일 값 모두 지원)"""
         def _update_operation():
-            return self._write_value_with_auto_split(path, data, "update_data")
+            return self._write_value_with_auto_split(
+                path,
+                data,
+                "update_data",
+                leaf_write_method="post",
+            )
         
         return self._execute_with_error_handling("데이터 업데이트", _update_operation)
     
