@@ -66,6 +66,7 @@ class AceBaseSystem(DatabaseSystem):
         
         self.access_token: Optional[str] = None
         self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=5)
+        self.split_threshold_bytes = int(os.getenv("ACEBASE_SPLIT_THRESHOLD_BYTES", "20000"))
         
         # 자격증명 보관 (토큰 만료/403 발생 시 재인증용)
         self._auth_username = username if (username and password) else None
@@ -221,6 +222,78 @@ class AceBaseSystem(DatabaseSystem):
                 "acebase_system",
                 f"[Payload][Large] op={operation} path={path} bytes={payload_bytes}",
             )
+
+    def _sanitize_any_for_storage(self, value: Any) -> Any:
+        """타입과 무관하게 저장용 sanitize를 적용"""
+        if value is None:
+            return "@"
+        if isinstance(value, list) and len(value) == 0:
+            return ["@"]
+        if isinstance(value, dict) and len(value) == 0:
+            return {"@": True}
+        if isinstance(value, dict):
+            return {k: self._sanitize_any_for_storage(v) for k, v in value.items()}
+        if isinstance(value, list):
+            return [self._sanitize_any_for_storage(item) for item in value]
+        return value
+
+    def _put_value(self, path: str, value: Any, operation_name: str) -> bool:
+        """경로에 단일 값을 PUT 저장"""
+        url = self._get_path_url(path)
+        payload = {"val": self._sanitize_any_for_storage(value)}
+        self._log_payload_size(operation_name, path, payload)
+        response = self.session.put(
+            url,
+            json=payload,
+            headers=self._get_headers(),
+            timeout=30
+        )
+        response.raise_for_status()
+        return True
+
+    def _write_value_with_auto_split(
+        self,
+        path: str,
+        value: Any,
+        operation_name: str,
+        clear_before_split: bool = False,
+    ) -> bool:
+        """
+        큰 payload는 dict/list 단위로 분할 저장하여 event loop burst를 완화
+        """
+        sanitized_value = self._sanitize_any_for_storage(value)
+        payload = {"val": sanitized_value}
+        payload_bytes = self._measure_payload_bytes(payload)
+
+        if payload_bytes < 0 or payload_bytes <= self.split_threshold_bytes:
+            return self._put_value(path, value, operation_name)
+
+        # dict/list 대형 payload는 분할 저장
+        if isinstance(value, dict):
+            LoggingUtil.warning(
+                "acebase_system",
+                f"[Payload][Split] op={operation_name} path={path} bytes={payload_bytes} kind=dict",
+            )
+            if clear_before_split:
+                self.delete_data(path)
+            for key, child_value in value.items():
+                child_path = f"{path}/{key}" if path else key
+                self._write_value_with_auto_split(child_path, child_value, operation_name)
+            return True
+
+        if isinstance(value, list):
+            LoggingUtil.warning(
+                "acebase_system",
+                f"[Payload][Split] op={operation_name} path={path} bytes={payload_bytes} kind=list len={len(value)}",
+            )
+            # list는 인덱스 단위 분할 저장 전에 기존 값을 비워 잔존 인덱스 방지
+            self.delete_data(path)
+            for idx, item in enumerate(value):
+                child_path = f"{path}/{idx}" if path else str(idx)
+                self._write_value_with_auto_split(child_path, item, operation_name)
+            return True
+
+        return self._put_value(path, value, operation_name)
     
     def _execute_with_error_handling(self, operation_name: str, operation_func: Callable, *args, **kwargs) -> Any:
         """
@@ -295,19 +368,7 @@ class AceBaseSystem(DatabaseSystem):
     def set_data(self, path: str, data: Dict[str, Any]) -> bool:
         """특정 경로에 딕셔너리 데이터를 업로드"""
         def _set_operation():
-            url = self._get_path_url(path)
-            sanitized_data = self.sanitize_data_for_storage(data)
-            # AceBase는 {"val": {...}} 형식을 요구함
-            payload = {"val": sanitized_data}
-            self._log_payload_size("set_data", path, payload)
-            response = self.session.put(
-                url,
-                json=payload,
-                headers=self._get_headers(),
-                timeout=30
-            )
-            response.raise_for_status()
-            return True
+            return self._write_value_with_auto_split(path, data, "set_data", clear_before_split=True)
         
         return self._execute_with_error_handling("데이터 업로드", _set_operation)
     
@@ -318,26 +379,7 @@ class AceBaseSystem(DatabaseSystem):
     def update_data(self, path: str, data: Any) -> bool:
         """특정 경로의 데이터를 부분 업데이트 (딕셔너리 또는 단일 값 모두 지원)"""
         def _update_operation():
-            url = self._get_path_url(path)
-            
-            # 단일 값(primitive type)인 경우 딕셔너리로 변환
-            if not isinstance(data, dict):
-                # 단일 값을 직접 전달 (AceBase는 {"val": value} 형식 사용)
-                payload = {"val": data}
-            else:
-                # 딕셔너리인 경우 sanitize 후 전달
-                sanitized_data = self.sanitize_data_for_storage(data)
-                payload = {"val": sanitized_data}
-
-            self._log_payload_size("update_data", path, payload)
-            response = self.session.post(
-                url,
-                json=payload,
-                headers=self._get_headers(),
-                timeout=30
-            )
-            response.raise_for_status()
-            return True
+            return self._write_value_with_auto_split(path, data, "update_data")
         
         return self._execute_with_error_handling("데이터 업데이트", _update_operation)
     
