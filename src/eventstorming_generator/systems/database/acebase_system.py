@@ -53,12 +53,20 @@ class AceBaseSystem(DatabaseSystem):
         # AceBase HTTP API는 /data/{dbname}/{path} 형식 사용
         self.api_url = f"{self.base_url}/data/{self.dbname}"
         
-        # 세션 설정 (재시도 로직 포함)
+        # 세션 설정 (재시도 로직 포함).
+        # urllib3 기본값은 POST 를 멱등하지 않다고 보고 retry 대상에서 제외하지만,
+        # AceBase update_data 는 POST 기반이며 대형 split write 도중 일시적 연결
+        # 끊김/타임아웃이 흔하다. allowed_methods=False 로 모든 method 를 재시도하고
+        # connect/read 별도 카운트를 명시해 ping out 회복 가능성을 높인다.
         self.session = requests.Session()
         retry_strategy = Retry(
             total=3,
+            connect=3,
+            read=3,
+            status=3,
             backoff_factor=0.3,
             status_forcelist=[429, 500, 502, 503, 504],
+            allowed_methods=False,
         )
         adapter = HTTPAdapter(max_retries=retry_strategy)
         self.session.mount("http://", adapter)
@@ -394,8 +402,8 @@ class AceBaseSystem(DatabaseSystem):
     # 데이터 설정 메서드들
     # =============================================================================
     
-    def set_data(self, path: str, data: Dict[str, Any]) -> bool:
-        """특정 경로에 딕셔너리 데이터를 업로드"""
+    def set_data(self, path: str, data: Any) -> bool:
+        """특정 경로에 값을 업로드 (dict/list/scalar 모두 지원, 대형 payload는 자동 split-write)"""
         def _set_operation():
             return self._write_value_with_auto_split(
                 path,
@@ -444,54 +452,28 @@ class AceBaseSystem(DatabaseSystem):
             f"[Payload] op=conditional_update_data path={path} diff_count={len(updates)}",
         )
         
-        # 각 업데이트 경로에 대해 개별적으로 업데이트
+        # 각 업데이트 경로에 대해 개별적으로 업데이트.
+        # 단순 값(list, scalar 등)이라도 set_data 경로를 거쳐 자동 split-write 및
+        # 401/403 재인증 흐름을 일관되게 적용한다.
+        # (이전: list/scalar는 직접 PUT 으로 처리되어 대형 logs 갱신 시
+        #  split-write 및 인증 재시도가 모두 우회되어 폭주/403 회귀를 유발)
         for update_path, value in updates.items():
             full_path = f"{path}/{update_path}" if path else update_path
             if value is None:
                 # 삭제
                 self.delete_data(full_path)
+                continue
+
+            if isinstance(value, dict):
+                # 딕셔너리 diff: 부분 업데이트 의미 유지 (POST 기반)
+                result = self.update_data(full_path, value)
             else:
-                # 업데이트: full_path가 이미 최종 필드 경로를 포함하므로
-                # update_data는 {"val": {...}} 형식으로 저장하는데,
-                # full_path가 이미 필드 경로이므로 value를 직접 저장해야 함
-                # 단순 값(문자열, 숫자 등)인 경우와 딕셔너리인 경우를 구분
-                if isinstance(value, dict):
-                    # 딕셔너리인 경우 그대로 전달 (이미 올바른 형식)
-                    self.update_data(full_path, value)
-                else:
-                    # 단순 값인 경우: full_path가 이미 필드 경로이므로
-                    # set_data를 사용하여 직접 값을 저장
-                    # sanitize_data_for_storage는 딕셔너리만 받으므로, 단순 값은 process_value를 직접 사용
-                    def process_simple_value(val):
-                        if val is None:
-                            return "@"  # null → 빈 문자열
-                        elif isinstance(val, list) and len(val) == 0:
-                            return ["@"]  # 빈 배열 → 마커가 포함된 배열
-                        elif isinstance(val, dict) and len(val) == 0:
-                            return {"@": True}  # 빈 객체 → 마커 객체
-                        elif isinstance(val, dict):
-                            return {k: process_simple_value(v) for k, v in val.items()}
-                        elif isinstance(val, list):
-                            return [process_simple_value(item) for item in val]
-                        else:
-                            return val
-                    
-                    sanitized_value = process_simple_value(value)
-                    url = self._get_path_url(full_path)
-                    payload = {"val": sanitized_value}
-                    self._log_payload_size("conditional_update_data", full_path, payload)
-                    try:
-                        response = self.session.put(
-                            url,
-                            json=payload,
-                            headers=self._get_headers(),
-                            timeout=30
-                        )
-                        response.raise_for_status()
-                    except Exception as e:
-                        LoggingUtil.exception("acebase_system", f"필드 업데이트 실패: {full_path}", e)
-                        return False
-        
+                # 단순 값(list/scalar): 해당 필드를 새 값으로 덮어쓰기 (PUT 기반)
+                result = self.set_data(full_path, value)
+
+            if result is False:
+                return False
+
         return True
     
     # =============================================================================

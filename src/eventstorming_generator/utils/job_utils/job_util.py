@@ -373,6 +373,10 @@ class JobUtil:
             # 업데이트 타입에 따른 처리
             if update_request.operation_type == "set":
                 db_system.set_data(path, data)
+                # set 직후 동일 Job의 첫 update가 전체 state를 다시 POST 하지 않도록
+                # 기준 스냅샷을 함께 갱신한다
+                JobUtil.previous_data_job_id = job_id
+                JobUtil.previous_data_state = data
             elif update_request.operation_type == "update":
                 if JobUtil.previous_data_job_id == job_id:
                     db_system.conditional_update_data(path, data, JobUtil.previous_data_state)
@@ -382,9 +386,14 @@ class JobUtil:
                     db_system.update_data(path, data)
                     JobUtil.previous_data_job_id = job_id
                     JobUtil.previous_data_state = data
-        
+
             elif update_request.operation_type == "delete":
                 db_system.delete_data(path)
+                # 동일 Job에 대한 잔존 스냅샷이 새 Job의 conditional update 기준이
+                # 되지 않도록 초기화
+                if JobUtil.previous_data_job_id == job_id:
+                    JobUtil.previous_data_job_id = None
+                    JobUtil.previous_data_state = None
 
         except Exception as e:
             LoggingUtil.exception("job_util", f"[Firebase Update Error] Job ID {update_request.state['inputs']['jobId']} 업데이트 실행 실패", e)
