@@ -21,7 +21,9 @@ dependencies = [
     "a2a-sdk[http-server]>=0.3.19",
     "fastapi>=0.119.1",
     "uvicorn[standard]>=0.38.0",
-    "sse-starlette>=3.0.3"
+    "sse-starlette>=3.0.3",
+    "psycopg[binary]>=3.2",
+    "psycopg-pool>=3.2"
 ]
 
 [project.optional-dependencies]

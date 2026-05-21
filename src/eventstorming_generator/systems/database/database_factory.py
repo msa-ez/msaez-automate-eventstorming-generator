@@ -5,6 +5,7 @@ from .database_system import DatabaseSystem
 from .firebase_system import FirebaseSystem
 from .memory_db_system import MemoryDBSystem
 from .acebase_system import AceBaseSystem
+from .postgres_system import PostgresSystem
 from ...config import Config
 from ...utils.logging_util import LoggingUtil
 
@@ -50,6 +51,23 @@ class DatabaseFactory:
                 dbname=dbname,
                 https=https,
                 username=username,
+                password=password
+            )
+        elif db_type == "postgres":
+            # PostgreSQL 초기화 (v1.0.30 — DB-migration-plan.md §5)
+            host = os.getenv('POSTGRES_HOST', '127.0.0.1')
+            port = int(os.getenv('POSTGRES_PORT', '5432'))
+            dbname = os.getenv('POSTGRES_DB', 'msaez')
+            user = os.getenv('POSTGRES_USER', 'msaez')
+            password = os.getenv('POSTGRES_PASSWORD', '')
+
+            LoggingUtil.info("database_factory", f"PostgreSQL 시스템 초기화: {host}:{port}/{dbname}")
+
+            DatabaseFactory._db_system_instance[db_type] = PostgresSystem.initialize(
+                host=host,
+                port=port,
+                dbname=dbname,
+                user=user,
                 password=password
             )
         else:
