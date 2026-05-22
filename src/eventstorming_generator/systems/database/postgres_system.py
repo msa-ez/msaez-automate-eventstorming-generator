@@ -422,6 +422,13 @@ class PostgresSystem(DatabaseSystem):
             return None
         return {row[0]: row[1] for row in rows}
 
+    def restore_data_from_storage(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        # job manager(atomic_claim_job)가 복원본을 변형한 뒤 원본(current_data)과
+        # diff 한다. passthrough 면 restored_data 가 current_data 와 동일 객체가 되어
+        # diff 가 비어 클레임 write 가 누락된다 → 원본과 독립된 깊은 복사본을 반환.
+        import copy
+        return copy.deepcopy(data) if data is not None else data
+
     @staticmethod
     def _pk_where(r: _Route):
         where = " AND ".join(f"{c} = %s" for c in r.pk)
