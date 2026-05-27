@@ -427,6 +427,14 @@ class XmlBaseGenerator(ABC):
             timeout_sec = float(os.getenv("LLM_TIMEOUT_SEC", "120"))
             init_kwargs.setdefault("timeout", timeout_sec)
 
+            # 출력 토큰 상한 — 미지정 시 OpenAI 가 응답 generation 단계에서 hang 되는
+            # 케이스(특히 큰 aggregate 의 다수 command/event/readModel 출력)를 회피.
+            # 32768 은 gpt-4.1-mini 의 max_completion_tokens 한도와 동일하므로 정상
+            # 응답이 잘릴 위험은 사실상 0. 환경변수 LLM_MAX_TOKENS 로 덮어쓸 수 있다.
+            max_tokens_env = os.getenv("LLM_MAX_TOKENS")
+            max_tokens = int(max_tokens_env) if max_tokens_env else 32768
+            init_kwargs.setdefault("max_tokens", max_tokens)
+
             self.model = init_chat_model(model_name, **init_kwargs)
             self._model_cache[cache_key] = self.model
     
