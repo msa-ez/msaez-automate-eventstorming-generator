@@ -83,12 +83,20 @@ class EsTraceUtil:
                     try:
                         # 3단계 처리
                         processed_refs = EsTraceUtil._process_refs_with_three_stages(
-                            refs_to_process, lines, min_line, max_line, 
+                            refs_to_process, lines, min_line, max_line,
                             requirement_index_mapping, state, log_prefix
                         )
                         args["refs"] = processed_refs
                     except Exception as e:
                         LogUtil.add_warning_log(state, f"{log_prefix} Failed to process refs for action: {e}")
+                # 노이즈 필터는 항상 적용 — LLM 이 numeric refs 를 바로 반환해
+                # _needs_processing 이 False 인 경로에서도 zero-length / 구조 라인 drop 이 필요.
+                try:
+                    args["refs"] = EsTraceUtil._filter_structural_and_zero_length(
+                        args["refs"], lines, state, log_prefix
+                    )
+                except Exception as e:
+                    LogUtil.add_warning_log(state, f"{log_prefix} Failed to filter refs for action: {e}")
 
             # Properties 또는 queryParameters의 refs 변환
             properties_key = None
@@ -96,7 +104,7 @@ class EsTraceUtil:
                 properties_key = "properties"
             elif args.get("queryParameters"):
                 properties_key = "queryParameters"
-                
+
             if properties_key and args.get(properties_key):
                 for prop in args[properties_key]:
                     if isinstance(prop, dict) and prop.get("refs"):
@@ -105,12 +113,19 @@ class EsTraceUtil:
                             try:
                                 # 3단계 처리
                                 processed_refs = EsTraceUtil._process_refs_with_three_stages(
-                                    refs_to_process, lines, min_line, max_line, 
+                                    refs_to_process, lines, min_line, max_line,
                                     requirement_index_mapping, state, log_prefix
                                 )
                                 prop["refs"] = processed_refs
                             except Exception as e:
                                 LogUtil.add_warning_log(state, f"{log_prefix} Failed to process refs for property: {e}")
+                        # numeric refs 경로도 동일 필터
+                        try:
+                            prop["refs"] = EsTraceUtil._filter_structural_and_zero_length(
+                                prop["refs"], lines, state, log_prefix
+                            )
+                        except Exception as e:
+                            LogUtil.add_warning_log(state, f"{log_prefix} Failed to filter refs for property: {e}")
 
     @staticmethod
     def _needs_processing(refs_array: List[List[List[Any]]]) -> bool:
