@@ -51,16 +51,20 @@ class EsTraceUtil:
         return (min(line_numbers), max(line_numbers))
 
     @staticmethod
-    def convert_refs_to_indexes(actions: List[ActionModel], original_description: str, requirement_index_mapping: Optional[RequirementIndexMapping], state: State, log_prefix: str = "") -> None:
+    def convert_refs_to_indexes(actions: List[ActionModel], original_description: str, requirement_index_mapping: Optional[RequirementIndexMapping], state: State, log_prefix: str = "", full_requirements_text: Optional[str] = None) -> None:
         """
         Action 목록의 모든 refs를 단어 조합에서 컬럼 위치로 변환하는 공통 메서드
         JavaScript의 sanitizeAndConvertRefs와 동일한 3단계 처리 방식 적용
-        
+
         Args:
             actions: 변환할 액션 목록
-            original_description: 원본 기능 요구사항 텍스트 (줄 번호 없는 버전)
+            original_description: 원본 기능 요구사항 텍스트 (BC-chunked, 줄 번호 없는 버전)
+            requirement_index_mapping: BC-local 라인 번호 → 원본 userStory 라인 번호 매핑
             state: 로깅을 위한 State 객체
             log_prefix: 로그 메시지에 사용할 접두사
+            full_requirements_text: 전체 userStory 텍스트 (선택).
+                있으면 노이즈 필터가 mapping 이후의 원본 userStory 라인 내용으로 구조 라인 판정.
+                없으면 BC-chunked text 기준으로 판정 (mapping 이전 좌표).
         """
         if not original_description:
             LogUtil.add_warning_log(state, f"{log_prefix} Original description is empty, skipping source reference conversion.")
@@ -69,7 +73,11 @@ class EsTraceUtil:
         # 1. 준비 작업: line numbering 및 범위 계산
         line_numbered_description = EsTraceUtil.add_line_numbers_to_description(original_description)
         min_line, max_line = EsTraceUtil.get_line_number_range(line_numbered_description)
-        lines = original_description.split('\n')  # prefix 없는 원본 라인들
+        lines = original_description.split('\n')  # prefix 없는 원본 라인들 (BC-chunked)
+
+        # 노이즈 필터용 라인: 가능하면 full userStory 사용 (mapping 적용 후 좌표와 일치).
+        # 없으면 BC-chunked lines 로 fallback (mapping 이전 좌표 기준 — 부정확하지만 차선).
+        filter_lines = full_requirements_text.split('\n') if full_requirements_text else lines
 
         for action in actions:
             args = action.args
@@ -81,7 +89,7 @@ class EsTraceUtil:
                 refs_to_process = args["refs"]
                 if EsTraceUtil._needs_processing(refs_to_process):
                     try:
-                        # 3단계 처리
+                        # 3단계 처리 (sanitize → transform → clamp → 노이즈필터 → mapping)
                         processed_refs = EsTraceUtil._process_refs_with_three_stages(
                             refs_to_process, lines, min_line, max_line,
                             requirement_index_mapping, state, log_prefix
@@ -89,11 +97,20 @@ class EsTraceUtil:
                         args["refs"] = processed_refs
                     except Exception as e:
                         LogUtil.add_warning_log(state, f"{log_prefix} Failed to process refs for action: {e}")
-                # 노이즈 필터는 항상 적용 — LLM 이 numeric refs 를 바로 반환해
-                # _needs_processing 이 False 인 경로에서도 zero-length / 구조 라인 drop 이 필요.
+                else:
+                    # numeric refs 경로 — 3단계 skip 됐으니 BC-local → 원본 좌표 mapping 을 여기서 적용해야
+                    # filter_lines (full userStory) 기준 노이즈 필터가 정확하게 동작함.
+                    if requirement_index_mapping:
+                        try:
+                            args["refs"] = EsTraceUtil._apply_requirement_index_mapping(
+                                args["refs"], requirement_index_mapping
+                            )
+                        except Exception as e:
+                            LogUtil.add_warning_log(state, f"{log_prefix} Failed to apply mapping for action: {e}")
+                # 노이즈 필터 — full userStory 좌표 기준으로 zero-length / 구조 라인 start drop.
                 try:
                     args["refs"] = EsTraceUtil._filter_structural_and_zero_length(
-                        args["refs"], lines, state, log_prefix
+                        args["refs"], filter_lines, state, log_prefix
                     )
                 except Exception as e:
                     LogUtil.add_warning_log(state, f"{log_prefix} Failed to filter refs for action: {e}")
@@ -119,10 +136,19 @@ class EsTraceUtil:
                                 prop["refs"] = processed_refs
                             except Exception as e:
                                 LogUtil.add_warning_log(state, f"{log_prefix} Failed to process refs for property: {e}")
-                        # numeric refs 경로도 동일 필터
+                        else:
+                            # numeric refs 경로 — mapping 직접 적용
+                            if requirement_index_mapping:
+                                try:
+                                    prop["refs"] = EsTraceUtil._apply_requirement_index_mapping(
+                                        prop["refs"], requirement_index_mapping
+                                    )
+                                except Exception as e:
+                                    LogUtil.add_warning_log(state, f"{log_prefix} Failed to apply mapping for property: {e}")
+                        # 노이즈 필터 — full userStory 좌표 기준
                         try:
                             prop["refs"] = EsTraceUtil._filter_structural_and_zero_length(
-                                prop["refs"], lines, state, log_prefix
+                                prop["refs"], filter_lines, state, log_prefix
                             )
                         except Exception as e:
                             LogUtil.add_warning_log(state, f"{log_prefix} Failed to filter refs for property: {e}")

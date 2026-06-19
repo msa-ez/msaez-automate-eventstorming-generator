@@ -275,8 +275,9 @@ def collect_and_apply_results(state: State) -> State:
 
                 try:
                     EsTraceUtil.convert_refs_to_indexes(
-                        created_actions, policy_result.original_description, 
-                        policy_result.requirement_index_mapping, state, "[POLICY_ACTIONS_SUBGRAPH]"
+                        created_actions, policy_result.original_description,
+                        policy_result.requirement_index_mapping, state, "[POLICY_ACTIONS_SUBGRAPH]",
+                        full_requirements_text=state.inputs.requirements
                     )
                 except Exception as e:
                     LogUtil.add_exception_object_log(state, f"[POLICY_ACTIONS_SUBGRAPH] Failed to convert source references for '{bc_name}'", e)

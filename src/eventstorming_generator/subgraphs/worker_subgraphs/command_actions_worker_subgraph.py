@@ -180,8 +180,9 @@ def worker_postprocess_command_actions(state: State) -> State:
         # Refs 후처리
         try:
             EsTraceUtil.convert_refs_to_indexes(
-                current_gen.created_actions, current_gen.original_description, 
-                current_gen.requirement_index_mapping, state, "[COMMAND_ACTIONS_WORKER]"
+                current_gen.created_actions, current_gen.original_description,
+                current_gen.requirement_index_mapping, state, "[COMMAND_ACTIONS_WORKER]",
+                full_requirements_text=state.inputs.requirements
             )
         except Exception as e:
             LogUtil.add_exception_object_log(state, f"[COMMAND_ACTIONS_WORKER] Failed to convert source references for aggregate '{aggregate_name}'", e)
