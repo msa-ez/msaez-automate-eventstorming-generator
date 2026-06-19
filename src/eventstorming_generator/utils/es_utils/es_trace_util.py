@@ -456,43 +456,98 @@ class EsTraceUtil:
     @staticmethod
     def _filter_structural_and_zero_length(refs_array: List[List[List[Any]]], lines: List[str], state: State, log_prefix: str) -> List[List[List[Any]]]:
         """
-        Stage 3.5: noise filter — drop:
-          1) zero-length ref (start == end on both line and col)
-          2) ref 의 START line 이 markdown 구조 라인 (헤더 `#`, 표 `|`, 구분선 `---`, 공백/빈 라인)
-             single-line 뿐 아니라 multi-line ref 도 — 시각화 시 노이즈 라인에서 highlight 가 시작됨.
+        Stage 3.5: refs **재배치** (이전엔 drop 했으나 LLM 의 매핑 의도를 보존하기 위해
+        본문 위치로 옮기는 방식으로 전환).
 
-        대표 케이스:
-          - LLM 이 사용자 스토리 표 row '| 시각화·리포팅 ... | PROJ-US-FR-011 | ...' 를 anchor 로 잡고
-            본문까지 span 시키는 ref [[19,1],[284,40]] — 시각화 시 표·구분선·헤더·blank 가 모두 highlight
-          - '##### [PROJ-US-FR-004] Q코드 신규' 헤더 단독 ref
-          - 빈 라인 [[44,1],[44,1]] 단일 위치
+        처리:
+          1) zero-length ref (start == end) — drop (의미 없음)
+          2) markdown 헤더 (`#####` 등) 시작 ref —
+             user story 헤더 (`##### [PROJ-US-FR-XXX]`) 면 그 user story 의 본문 위치로 옮기고
+             그 외 섹션 헤더 (예: `## 1. 사용자 스토리 목록`) 는 drop.
+          3) 표 row (`|`) 시작 ref —
+             해당 row 에서 `[PROJ-US-FR-XXX]` 추출 → 같은 ID 의 `#####` 본문 위치로 이동.
+             ID 없으면 drop.
+          4) 구분선 (`---`) / 공백 라인 시작 ref — drop.
+          5) 그 외 (본문 라인) 는 그대로 보존.
+
+        결과: LLM 이 "이 element 는 FR-004 에 매핑" 이라고 헤더 / TOC row 를 anchor 로
+        잡은 경우, anchor 위치만 본문 (As a narrative 또는 인수기준 블록) 으로 옮겨져서
+        시각화 시 의미있는 highlight 가 됨.
         """
         if not refs_array or not lines:
             return refs_array
 
-        def _is_structural(text):
-            if text is None:
-                return True
+        # user story 본문 위치 인덱스 사전 계산: { 'PROJ-US-FR-001': narrative_line_num, ... }
+        # narrative 라인 ('> *As a ...') 우선, 없으면 첫 content 라인.
+        import re as _re
+        us_index = {}
+        us_header_re = _re.compile(r'^\s*#{4,6}\s+\[([A-Za-z][\w-]*US-(?:FR|NFR)-\d+)\]')
+        narrative_re = _re.compile(r'^\s*>\s*\*?\s*As a')
+        for i, ln in enumerate(lines):
+            m = us_header_re.match(ln or '')
+            if m:
+                us_id = m.group(1)
+                # 다음 같은 레벨 헤더 또는 `---` 까지가 body
+                body_end = len(lines)
+                for j in range(i+1, len(lines)):
+                    nxt = (lines[j] or '').strip()
+                    if not nxt: continue
+                    if us_header_re.match(nxt) or nxt.startswith('---'):
+                        body_end = j
+                        break
+                # narrative 우선
+                narrative_line = None
+                first_content_line = None
+                for j in range(i+1, body_end):
+                    raw = lines[j] or ''
+                    stripped = raw.strip()
+                    if not stripped: continue
+                    if stripped.startswith('#'): continue
+                    if stripped.startswith('|'): continue
+                    if all(c in '- \t' for c in stripped) and len(stripped) >= 3: continue
+                    if first_content_line is None:
+                        first_content_line = j + 1  # 1-based
+                    if narrative_re.match(raw):
+                        narrative_line = j + 1
+                        break
+                target = narrative_line or first_content_line
+                if target:
+                    us_index[us_id] = target
+
+        def _is_zero(s_line, s_col, e_line, e_col):
+            return s_col is not None and e_col is not None and s_line == e_line and s_col == e_col
+
+        def _line_classify(text):
+            if text is None: return 'oob'
             stripped = text.strip()
-            if not stripped:
-                return True
-            if stripped.startswith('#'):
-                return True
-            if stripped.startswith('|'):
-                return True
-            if all(c in '- \t' for c in stripped):
-                return True
-            return False
+            if not stripped: return 'empty'
+            if stripped.startswith('#'): return 'header'
+            if stripped.startswith('|'): return 'table'
+            if all(c in '- \t' for c in stripped) and len(stripped) >= 3: return 'sep'
+            return 'content'
+
+        def _extract_us_id(text):
+            if not text: return None
+            m = _re.search(r'\[([A-Za-z][\w-]*US-(?:FR|NFR)-\d+)\]', text)
+            return m.group(1) if m else None
+
+        def _line_to_full_range(line_num):
+            """1-based 라인 → 그 라인 전체를 cover 하는 ref"""
+            if not (1 <= line_num <= len(lines)):
+                return None
+            content = lines[line_num - 1] or ''
+            return [[line_num, 1], [line_num, max(1, len(content))]]
 
         dropped = 0
-        filtered = []
+        relocated = 0
+        result = []
         for mono in refs_array:
             if not isinstance(mono, list) or len(mono) != 2:
-                filtered.append(mono)
+                result.append(mono)
                 continue
             s, e = mono
             if not (isinstance(s, list) and len(s) == 2 and isinstance(e, list) and len(e) == 2):
-                filtered.append(mono)
+                result.append(mono)
                 continue
             try:
                 s_line = int(s[0])
@@ -500,29 +555,49 @@ class EsTraceUtil:
                 e_line = int(e[0])
                 e_col = int(e[1]) if isinstance(e[1], (int, float)) else None
             except (TypeError, ValueError):
-                filtered.append(mono)
+                result.append(mono)
                 continue
 
-            # zero-length drop
-            if s_col is not None and e_col is not None and s_line == e_line and s_col == e_col:
+            # 1) zero-length: drop
+            if _is_zero(s_line, s_col, e_line, e_col):
                 dropped += 1
                 continue
 
-            # 구조 라인 start drop
             idx = s_line - 1
-            if 0 <= idx < len(lines):
-                if _is_structural(lines[idx]):
-                    dropped += 1
+            if not (0 <= idx < len(lines)):
+                result.append(mono)
+                continue
+
+            cls = _line_classify(lines[idx])
+
+            if cls == 'content':
+                # 본문 시작 — 그대로 보존
+                result.append(mono)
+                continue
+
+            if cls in ('empty', 'sep'):
+                dropped += 1
+                continue
+
+            # cls in ('header', 'table') → user story ID 추출 후 본문으로 relocate
+            us_id = _extract_us_id(lines[idx])
+            if us_id and us_id in us_index:
+                target_line = us_index[us_id]
+                new_ref = _line_to_full_range(target_line)
+                if new_ref:
+                    result.append(new_ref)
+                    relocated += 1
                     continue
 
-            filtered.append(mono)
+            # ID 추출 못했거나 본문 위치 매핑 실패 — drop
+            dropped += 1
 
-        if dropped > 0:
+        if dropped > 0 or relocated > 0:
             try:
-                LogUtil.add_info_log(state, f"{log_prefix} stage-3.5 noise filter: dropped {dropped} structural/zero-length refs")
+                LogUtil.add_info_log(state, f"{log_prefix} stage-3.5 refs: relocated={relocated}, dropped={dropped} (zero-length/non-user-story)")
             except Exception:
                 pass
-        return filtered
+        return result
 
     @staticmethod
     def _apply_requirement_index_mapping(refs_array: List[List[List[Any]]], requirement_index_mapping: RequirementIndexMapping) -> List[List[List[int]]]:
