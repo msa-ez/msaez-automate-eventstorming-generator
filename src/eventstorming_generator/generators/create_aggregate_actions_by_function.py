@@ -52,7 +52,11 @@ class CreateAggregateActionsByFunction(XmlBaseGenerator):
             <category name="Traceability Rules">
                 <rule id="trace-1">For every created element (Aggregate, ValueObject, Enumeration) and each of their properties, you MUST provide `refs`.</rule>
                 <rule id="trace-2">The `refs` must link to the "Functional Requirements" using the format: `[[["(start_line_number)", "(start_word_combination)"], ["(end_line_number)", "(end_word_combination)"]]]`.</rule>
-                <rule id="trace-3">The "word_combination" must be MINIMAL (1-2 words) to uniquely identify the position.</rule>
+                <rule id="trace-3">**Clause-Aligned Phrases:** Choose 2-4 token phrases that mark a meaningful clause boundary — start_phrase = FIRST 2-3 tokens of the substantive content; end_phrase = LAST 2-3 tokens. Do NOT pick single-character phrases or particles that land mid-word or mid-Korean-character-cluster. Never end inside a word.</rule>
+                <rule id="trace-4">**Skip Structural Lines:** Do NOT anchor on markdown headers (lines starting with `#`, `##`, ..., `######`), table rows (lines starting with `|`), separator lines (`---`), or blank lines. Anchor only on prose lines (user story narratives `> *As a ...`, Given/When/Then clauses, task entries `- [PROJ-US-FR-...-TASK-...]`).</rule>
+                <rule id="trace-5">**Per-Element Specificity:** Each element's refs should point to the SPECIFIC clause that defines THAT element. Do NOT reuse a single broad multi-line block ref for many different elements — that destroys per-element traceability.</rule>
+                <rule id="trace-6">**Zero-Length Forbidden:** start and end positions must NOT be identical.</rule>
+                <rule id="trace-7">**Tight Spans:** Keep refs tight — typically one Given/When/Then block (≤3 lines) or a single sentence. Avoid 20+ line ranges that include unrelated sections (table headers, other user stories, blank gaps).</rule>
             </category>
 
             <category name="Naming and Language Conventions">

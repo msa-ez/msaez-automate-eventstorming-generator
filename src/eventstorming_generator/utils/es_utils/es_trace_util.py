@@ -148,17 +148,22 @@ class EsTraceUtil:
         try:
             # 1단계: refs 배열 정리 (구문/라인 검증)
             sanitized_refs = EsTraceUtil._sanitize_refs_array(refs_array, lines, min_line, max_line)
-            
+
             # 2단계: 칼럼 좌표 변환 (문자열 -> 인덱스)
             converted_refs = EsTraceUtil._transform_reference(sanitized_refs, lines, state, log_prefix)
-            
+
             # 3단계: 최종 클램핑 처리
             final_refs = EsTraceUtil._clamp_refs_array(converted_refs, lines, min_line, max_line)
+
+            # 3.5단계: 노이즈 필터 — zero-length / markdown 구조 라인(헤더/표/구분선/공백) start drop.
+            # LLM 이 가이드를 안 지킬 때 산출물 추적성에서 헤더·표 row 가 highlight 시작점이 되는 케이스 방지.
+            # (project_generator 의 requirements_mapper / preview_fields_generator / traceability_generator 와 동일 정책)
+            final_refs = EsTraceUtil._filter_structural_and_zero_length(final_refs, lines, state, log_prefix)
 
             # 4단계: requirement_index_mapping이 있을 경우, 인덱스 맵핑 적용
             if requirement_index_mapping:
                 final_refs = EsTraceUtil._apply_requirement_index_mapping(final_refs, requirement_index_mapping)
-            
+
             return final_refs
             
         except Exception as e:
@@ -407,6 +412,77 @@ class EsTraceUtil:
         
         return clamped_array
     
+    @staticmethod
+    def _filter_structural_and_zero_length(refs_array: List[List[List[Any]]], lines: List[str], state: State, log_prefix: str) -> List[List[List[Any]]]:
+        """
+        Stage 3.5: noise filter — drop:
+          1) zero-length ref (start == end on both line and col)
+          2) ref 의 START line 이 markdown 구조 라인 (헤더 `#`, 표 `|`, 구분선 `---`, 공백/빈 라인)
+             single-line 뿐 아니라 multi-line ref 도 — 시각화 시 노이즈 라인에서 highlight 가 시작됨.
+
+        대표 케이스:
+          - LLM 이 사용자 스토리 표 row '| 시각화·리포팅 ... | PROJ-US-FR-011 | ...' 를 anchor 로 잡고
+            본문까지 span 시키는 ref [[19,1],[284,40]] — 시각화 시 표·구분선·헤더·blank 가 모두 highlight
+          - '##### [PROJ-US-FR-004] Q코드 신규' 헤더 단독 ref
+          - 빈 라인 [[44,1],[44,1]] 단일 위치
+        """
+        if not refs_array or not lines:
+            return refs_array
+
+        def _is_structural(text):
+            if text is None:
+                return True
+            stripped = text.strip()
+            if not stripped:
+                return True
+            if stripped.startswith('#'):
+                return True
+            if stripped.startswith('|'):
+                return True
+            if all(c in '- \t' for c in stripped):
+                return True
+            return False
+
+        dropped = 0
+        filtered = []
+        for mono in refs_array:
+            if not isinstance(mono, list) or len(mono) != 2:
+                filtered.append(mono)
+                continue
+            s, e = mono
+            if not (isinstance(s, list) and len(s) == 2 and isinstance(e, list) and len(e) == 2):
+                filtered.append(mono)
+                continue
+            try:
+                s_line = int(s[0])
+                s_col = int(s[1]) if isinstance(s[1], (int, float)) else None
+                e_line = int(e[0])
+                e_col = int(e[1]) if isinstance(e[1], (int, float)) else None
+            except (TypeError, ValueError):
+                filtered.append(mono)
+                continue
+
+            # zero-length drop
+            if s_col is not None and e_col is not None and s_line == e_line and s_col == e_col:
+                dropped += 1
+                continue
+
+            # 구조 라인 start drop
+            idx = s_line - 1
+            if 0 <= idx < len(lines):
+                if _is_structural(lines[idx]):
+                    dropped += 1
+                    continue
+
+            filtered.append(mono)
+
+        if dropped > 0:
+            try:
+                LogUtil.add_info_log(state, f"{log_prefix} stage-3.5 noise filter: dropped {dropped} structural/zero-length refs")
+            except Exception:
+                pass
+        return filtered
+
     @staticmethod
     def _apply_requirement_index_mapping(refs_array: List[List[List[Any]]], requirement_index_mapping: RequirementIndexMapping) -> List[List[List[int]]]:
         """
