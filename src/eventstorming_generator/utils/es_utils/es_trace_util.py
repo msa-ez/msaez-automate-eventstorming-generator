@@ -528,7 +528,8 @@ class EsTraceUtil:
 
         def _extract_us_id(text):
             if not text: return None
-            m = _re.search(r'\[([A-Za-z][\w-]*US-(?:FR|NFR)-\d+)\]', text)
+            # 브래킷 optional — TOC 표 row 는 브래킷 없이 PROJ-US-FR-XXX 만 나옴
+            m = _re.search(r'\[?([A-Za-z][\w-]*US-(?:FR|NFR)-\d+)\]?', text)
             return m.group(1) if m else None
 
         def _line_to_full_range(line_num):
