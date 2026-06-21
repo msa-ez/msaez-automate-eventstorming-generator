@@ -31,7 +31,20 @@ class CreateCommandActionsByFunction(XmlBaseGenerator):
         <guidelines>
             <title>General Guidelines</title>
             <rule id="1">**Data Types:** Use appropriate Java types (String, Long, Integer, Double, Boolean, Date, List<Type>, etc.). Custom types must be defined as Enumeration or ValueObject within the Aggregate.</rule>
-            <rule id="2">**Traceability:** For every created element and its properties, you MUST provide `refs` linking back to the "Functional Requirements". Format is `[[["<start_line_number>", "<start_word_combination>"], ["<end_line_number>", "<end_word_combination>"]]]`. **Phrase Selection:** Choose 2-4 token phrases that align with CLAUSE boundaries — start_phrase = FIRST 2-3 tokens of the substantive content; end_phrase = LAST 2-3 tokens. Do NOT pick single-character phrases or particles that land mid-word or mid-Korean-character-cluster. Never end inside a word. **Skip Structural Lines:** Do NOT anchor on markdown headers (lines starting with `#`, `##`, ..., `######`), table rows (lines starting with `|`), separator lines (`---`), or blank lines. Anchor only on prose lines such as user story narratives (`> *As a ...`), acceptance criteria (`- Given/When/Then ...`), and task entries (`- [PROJ-US-FR-...-TASK-...]`). **Per-Element Specificity:** Each element's refs should point to the SPECIFIC clause that defines THAT element. Do NOT reuse a single broad multi-line block ref for many different commands/events — that destroys per-element traceability. **Zero-Length Forbidden:** start and end positions must NOT be identical. **Span:** Keep refs tight — typically one Given/When/Then block (3 lines) or a single sentence, NOT 20+ line ranges that include unrelated sections.</rule>
+            <rule id="2">**Traceability:** For every created element and its properties, you should provide `refs` linking back to the "Functional Requirements". Format is `[[["<start_line_number>", "<start_word_combination>"], ["<end_line_number>", "<end_word_combination>"]]]`.
+
+                **WHEN refs is REQUIRED vs WHEN empty is OK:**
+                - **REQUIRED (non-empty refs):** If you created this Command/Event/ReadModel because you saw SPECIFIC TEXT in the requirements (a user story narrative, an acceptance criterion, a task entry, a domain term explicitly mentioned), you MUST provide refs to that text. Returning empty refs in this case loses critical traceability.
+                - **OPTIONAL (empty `[]` allowed):** If this element was added as inferred completion — DDD standard pattern (paired Create↔Cancel/Update commands, audit events), cross-cutting NFR application (idempotency, retry), or structural completeness — and there is NO specific clause that motivates it, return `"refs": []` HONESTLY.
+                - **NEVER fabricate refs.** A fabricated ref (pointing to unrelated text) is worse than empty. Empty = honest signal of "inferred"; fabricated = lie that destroys trust in the trace data.
+
+                **Phrase Selection (when refs is non-empty):** Choose 2-4 token phrases at CLAUSE boundaries — start = FIRST 2-3 tokens of substantive content; end = LAST 2-3 tokens. Never end mid-word or mid-Korean-character-cluster.
+
+                **Skip Structural Lines:** Do NOT anchor on markdown headers (`#`..`######`), table rows (`|`), separator lines (`---`), or blank lines. Anchor only on prose (user story narratives `> *As a ...`, Given/When/Then, task entries `- [PROJ-US-FR-...-TASK-...]`).
+
+                **Per-Element Specificity:** Each element's refs should point to the SPECIFIC clause that defines THAT element. Do NOT reuse one broad multi-line block ref across many different commands/events.
+
+                **Zero-Length Forbidden, Tight Spans:** start and end positions must NOT be identical. Keep refs to one Given/When/Then block (≤3 lines) or a single sentence — NOT 20+ line ranges.</rule>
             <rule id="3">**Naming and Language:** Technical names (classes, properties) must be in English. Display names (aliases) must be in user's preferred language.</rule>
             <rule id="4">**Naming Patterns:**
                 - Commands: Verb + Noun (e.g., CreateOrder)

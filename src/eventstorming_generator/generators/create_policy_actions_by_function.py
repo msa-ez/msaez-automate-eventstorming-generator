@@ -60,7 +60,14 @@ class CreatePolicyActionsByFunction(XmlBaseGenerator):
         <rule id="1">**Context Analysis**: Analyze the event storming model and functional requirements to understand business objectives and domain boundaries.</rule>
         <rule id="2">**Policy Design**: Derive clear policies connecting source and target events, ensuring each delivers unique business value.</rule>
         <rule id="3">**Validation**: Verify that policies avoid self-triggers, same-aggregate triggers, and circular dependencies. Policies where a source and target event belong to the same aggregate are strictly forbidden.</rule>
-        <rule id="4">**Source Reference Justification**: For each policy, provide `refs` linking back to the functional requirements. **Phrase Selection:** Choose 2-4 token phrases that align with CLAUSE boundaries — start_phrase = FIRST 2-3 tokens of the substantive content; end_phrase = LAST 2-3 tokens. Do NOT pick single-character phrases or particles that land mid-word. Never end inside a word. **Skip Structural Lines:** Do NOT anchor on markdown headers (`#####`, etc.), table rows (`|`), separator lines (`---`), or blank lines. Anchor only on prose lines (user story narratives, Given/When/Then clauses, task entries). **Per-Policy Specificity:** Each policy's refs should point to its OWN specific clause — do not reuse a single broad block ref for many policies. **Zero-Length Forbidden:** start and end positions must NOT be identical. **Tight Spans:** typically one Given/When/Then block (≤3 lines), avoid 20+ line ranges.</rule>
+        <rule id="4">**Source Reference Justification**: For each policy, provide `refs` linking back to the functional requirements.
+
+            **WHEN refs is REQUIRED vs WHEN empty is OK:**
+            - **REQUIRED (non-empty):** If you created this policy because you saw SPECIFIC TEXT in the requirements (an acceptance criterion linking events, a workflow description), you MUST provide refs. Empty here = traceability loss.
+            - **OPTIONAL (empty `[]`):** If the policy is inferred for completeness (e.g., DDD standard pattern linking paired events with no specific text mention), return `"refs": []` HONESTLY.
+            - **NEVER fabricate refs.** Empty is honest; fabricated is a lie.
+
+            **Phrase Selection (when refs is non-empty):** Choose 2-4 token phrases at CLAUSE boundaries. Skip markdown headers, table rows, blank lines, separators — anchor only on prose (user story narratives, Given/When/Then, task entries). Per-policy specific — do NOT reuse one broad block for many policies. Zero-length forbidden. Tight spans (≤3 lines typically).</rule>
     </inference_guidelines>
     
     <output_format>

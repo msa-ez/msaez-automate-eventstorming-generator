@@ -50,7 +50,11 @@ class CreateAggregateActionsByFunction(XmlBaseGenerator):
             </category>
 
             <category name="Traceability Rules">
-                <rule id="trace-1">For every created element (Aggregate, ValueObject, Enumeration) and each of their properties, you MUST provide `refs`.</rule>
+                <rule id="trace-0">**WHEN refs is REQUIRED vs OPTIONAL:**
+                    - **REQUIRED (non-empty):** If you created this Aggregate/ValueObject/Enumeration/property because you saw SPECIFIC TEXT in the requirements (a user story, an acceptance criterion, a domain term explicitly mentioned), you MUST provide refs to that text. Empty refs here = traceability loss.
+                    - **OPTIONAL (empty `[]`):** If this is an inferred standard DDD element — audit fields (`createdAt`, `updatedAt`), ID value objects, paired counterpart concepts, structural completion — with no specific clause mentioning it, return `"refs": []` HONESTLY.
+                    - **NEVER fabricate refs.** Fabricated refs pointing to unrelated text are worse than empty. Empty = honest "inferred"; fabricated = lie.</rule>
+                <rule id="trace-1">For every created element (Aggregate, ValueObject, Enumeration) and each of their properties, you should provide `refs` when traceable per the rule above.</rule>
                 <rule id="trace-2">The `refs` must link to the "Functional Requirements" using the format: `[[["(start_line_number)", "(start_word_combination)"], ["(end_line_number)", "(end_word_combination)"]]]`.</rule>
                 <rule id="trace-3">**Clause-Aligned Phrases:** Choose 2-4 token phrases that mark a meaningful clause boundary — start_phrase = FIRST 2-3 tokens of the substantive content; end_phrase = LAST 2-3 tokens. Do NOT pick single-character phrases or particles that land mid-word or mid-Korean-character-cluster. Never end inside a word.</rule>
                 <rule id="trace-4">**Skip Structural Lines:** Do NOT anchor on markdown headers (lines starting with `#`, `##`, ..., `######`), table rows (lines starting with `|`), separator lines (`---`), or blank lines. Anchor only on prose lines (user story narratives `> *As a ...`, Given/When/Then clauses, task entries `- [PROJ-US-FR-...-TASK-...]`).</rule>
