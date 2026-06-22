@@ -153,14 +153,18 @@ class EsTraceUtil:
                         except Exception as e:
                             LogUtil.add_warning_log(state, f"{log_prefix} Failed to filter refs for property: {e}")
 
-        # ── Keyword fallback: 위 처리 후에도 refs 가 빈 action 들 보강 ──
-        # LLM 이 action 의 name/alias 가 source 에 명백히 등장함에도 refs 를 skip
-        # 한 케이스 대응. name/alias 를 source 에서 검색해서 prose 본문에 매칭되면
-        # 그 라인으로 자동 ref 채움. (keyword 는 LLM 출력값이라 도메인 하드코딩 아님)
-        try:
-            EsTraceUtil._fill_empty_refs_by_keyword(actions, filter_lines, state, log_prefix)
-        except Exception as e:
-            LogUtil.add_warning_log(state, f"{log_prefix} Keyword fallback failed (non-fatal): {e}")
+        # ── Keyword fallback 제거 (의도적 비활성) ──
+        # 이전: refs 가 빈 action 을 name/alias substring 으로 source 첫 매칭 라인에
+        # 자동 채움. 좌표계는 OK (filter_lines = full userStory) 였으나, 본질 문제는
+        # semantic fabrication 이었음:
+        #   - LLM 이 'inferred 라 정직하게 empty' 로 둔 refs 를 덮어써서, 합의된
+        #     'empty 가 fabricated 보다 정직' 정책 (dc7ef32 / minItems 제거) 과 충돌.
+        #   - 첫 substring 매칭을 전체 userStory (다른 BC/다른 user story 포함) 범위에서
+        #     찾으므로 '주문/관리/상태/코드' 같은 흔한 키워드는 무관한 라인에 꽂힘.
+        #   - inferred-empty 와 LLM 의 단순 skip 을 구분 못 하고 모두 채워 false positive 양산.
+        # project-generator/traceability_generator (4ad4b81) 가 동일 폴백을 제거한 것과
+        # parity. 빈 refs 는 그대로 두어 '추론 (근거 없음)' 신호를 정직하게 유지.
+        # (_fill_empty_refs_by_keyword 메서드는 참고용으로 남겨두되 호출하지 않음)
 
     @staticmethod
     def _fill_empty_refs_by_keyword(actions, lines, state, log_prefix):
