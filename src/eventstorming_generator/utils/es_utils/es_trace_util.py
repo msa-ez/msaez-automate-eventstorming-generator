@@ -84,17 +84,6 @@ class EsTraceUtil:
             if not args:
                 continue
 
-            # ── 진단 로그: LLM 이 준 원본 refs 를 그대로 기록 (command/event/policy 역추적
-            #    공백 원인 추적용). 처리 전 raw refs 와 property refs 개수를 남긴다. ──
-            try:
-                _nm = args.get("commandName") or args.get("eventName") or args.get("readModelName") or args.get("name") or "?"
-                _raw = args.get("refs")
-                _props = args.get("properties") or args.get("queryParameters") or []
-                _prop_with_refs = sum(1 for p in _props if isinstance(p, dict) and p.get("refs"))
-                LogUtil.add_info_log(state, f"{log_prefix} TRACE-DIAG name={_nm} raw_refs={_raw} props={len(_props)} props_with_refs={_prop_with_refs}")
-            except Exception:
-                pass
-
             # Aggregate, ValueObject, Enumeration, Command, Event, ReadModel 자체의 refs 변환
             if args.get("refs"):
                 refs_to_process = args["refs"]
