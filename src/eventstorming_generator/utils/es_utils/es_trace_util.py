@@ -153,6 +153,79 @@ class EsTraceUtil:
                         except Exception as e:
                             LogUtil.add_warning_log(state, f"{log_prefix} Failed to filter refs for property: {e}")
 
+        # ── Keyword fallback: 위 처리 후에도 refs 가 빈 action 들 보강 ──
+        # LLM 이 action 의 name/alias 가 source 에 명백히 등장함에도 refs 를 skip
+        # 한 케이스 대응. name/alias 를 source 에서 검색해서 prose 본문에 매칭되면
+        # 그 라인으로 자동 ref 채움. (keyword 는 LLM 출력값이라 도메인 하드코딩 아님)
+        try:
+            EsTraceUtil._fill_empty_refs_by_keyword(actions, filter_lines, state, log_prefix)
+        except Exception as e:
+            LogUtil.add_warning_log(state, f"{log_prefix} Keyword fallback failed (non-fatal): {e}")
+
+    @staticmethod
+    def _fill_empty_refs_by_keyword(actions, lines, state, log_prefix):
+        """refs 가 빈 action 의 name/alias 가 source 에 prose 로 등장하면 해당 라인을 ref 로 자동 부여."""
+        if not lines:
+            return
+        filled = 0
+
+        def _candidate_line_for(keyword):
+            if not keyword or not isinstance(keyword, str) or len(keyword.strip()) < 2:
+                return None
+            kw = keyword.strip()
+            for i, ln in enumerate(lines):
+                if not ln or kw not in ln:
+                    continue
+                stripped = ln.strip()
+                if not stripped: continue
+                if stripped.startswith('#'): continue   # markdown 헤더 skip
+                if stripped.startswith('|'): continue   # TOC 표 skip
+                if all(c in '- \t' for c in stripped) and len(stripped) >= 3: continue  # 구분선
+                return i + 1
+            return None
+
+        for action in actions:
+            args = getattr(action, 'args', None)
+            if not args: continue
+            if not args.get('refs'):
+                # name 후보들 — Command/Event/ReadModel 마다 다른 키 가능
+                candidates = []
+                for k in ('commandAlias', 'eventAlias', 'readModelAlias',
+                          'commandName', 'eventName', 'readModelName',
+                          'actionName', 'alias', 'name'):
+                    v = args.get(k)
+                    if v:
+                        candidates.append(v)
+                target_line = None
+                for c in candidates:
+                    target_line = _candidate_line_for(c)
+                    if target_line:
+                        break
+                if target_line:
+                    content = lines[target_line - 1]
+                    args['refs'] = [[[target_line, 1], [target_line, max(1, len(content))]]]
+                    filled += 1
+            # properties 도 동일 처리
+            for prop_key in ('properties', 'queryParameters'):
+                if not args.get(prop_key):
+                    continue
+                for prop in args[prop_key]:
+                    if not isinstance(prop, dict):
+                        continue
+                    if prop.get('refs'):
+                        continue
+                    target_line = _candidate_line_for(prop.get('name'))
+                    if target_line:
+                        content = lines[target_line - 1]
+                        prop['refs'] = [[[target_line, 1], [target_line, max(1, len(content))]]]
+                        filled += 1
+
+        if filled:
+            try:
+                LogUtil.add_info_log(state, f"{log_prefix} keyword-fallback: empty refs 였던 {filled} 건을 자동 보강")
+            except Exception:
+                pass
+
     @staticmethod
     def _needs_processing(refs_array: List[List[List[Any]]]) -> bool:
         """refs가 처리가 필요한지 확인 (문자열 기반 참조가 있는지)"""
