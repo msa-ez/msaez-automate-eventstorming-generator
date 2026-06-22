@@ -410,28 +410,39 @@ class EsTraceUtil:
             return max(lo, min(hi, n))
         
         def try_relocate(line: int, phrase: str) -> int:
-            """문구가 해당 라인에 없으면 ±5 라인 탐색"""
+            """문구가 해당 라인에 없으면 ±5 라인 탐색.
+
+            가드: 짧은(< 4 자) phrase 는 흔한 토큰/조사일 수 있어 무관한 라인으로 잘못
+            옮겨질 위험이 크므로 relocate 안 함. ±5 window 매칭이 모호(2 곳 이상)하면
+            원래 라인 유지. (false relocation 방지)
+            """
             if not isinstance(phrase, str) or not phrase.strip():
                 return line
-            
+
             def has_phrase(ln: int) -> bool:
                 idx = ln - min_line
                 if 0 <= idx < len(lines):
                     content = lines[idx]
                     return phrase in content
                 return False
-            
+
             if has_phrase(line):
                 return line
-            
-            # ±5 라인 내에서 탐색
+
+            # 짧은 phrase 는 relocate 안 함
+            if len(phrase.strip()) < 4:
+                return line
+
+            # ±5 라인 내 매칭 후보 수집 — 모호하면 (2 곳 이상) 이동 안 함
+            candidates = []
             for d in range(1, 6):
                 if line - d >= min_line and has_phrase(line - d):
-                    return line - d
+                    candidates.append(line - d)
                 if line + d <= max_line and has_phrase(line + d):
-                    return line + d
-            
-            return line  # 못 찾으면 원래 라인 유지
+                    candidates.append(line + d)
+            if len(candidates) == 1:
+                return candidates[0]
+            return line  # 없거나 모호하면 원래 라인 유지
         
         sanitized_array = []
         for mono in refs_array:
