@@ -108,9 +108,11 @@ class EsTraceUtil:
                         except Exception as e:
                             LogUtil.add_warning_log(state, f"{log_prefix} Failed to apply mapping for action: {e}")
                 # 노이즈 필터 — full userStory 좌표 기준으로 zero-length / 구조 라인 start drop.
+                # GLOBAL 좌표라 relocate 금지 (allow_relocate=False) — 좌표 mismatch 로 구조
+                # 라인에 떨어진 ref 를 whole-line 으로 키우면 L164 거짓 매핑 발생.
                 try:
                     args["refs"] = EsTraceUtil._filter_structural_and_zero_length(
-                        args["refs"], filter_lines, state, log_prefix
+                        args["refs"], filter_lines, state, log_prefix, allow_relocate=False
                     )
                 except Exception as e:
                     LogUtil.add_warning_log(state, f"{log_prefix} Failed to filter refs for action: {e}")
@@ -145,10 +147,10 @@ class EsTraceUtil:
                                     )
                                 except Exception as e:
                                     LogUtil.add_warning_log(state, f"{log_prefix} Failed to apply mapping for property: {e}")
-                        # 노이즈 필터 — full userStory 좌표 기준
+                        # 노이즈 필터 — full userStory 좌표 기준 (GLOBAL → relocate 금지)
                         try:
                             prop["refs"] = EsTraceUtil._filter_structural_and_zero_length(
-                                prop["refs"], filter_lines, state, log_prefix
+                                prop["refs"], filter_lines, state, log_prefix, allow_relocate=False
                             )
                         except Exception as e:
                             LogUtil.add_warning_log(state, f"{log_prefix} Failed to filter refs for property: {e}")
@@ -546,10 +548,19 @@ class EsTraceUtil:
         return clamped_array
     
     @staticmethod
-    def _filter_structural_and_zero_length(refs_array: List[List[List[Any]]], lines: List[str], state: State, log_prefix: str) -> List[List[List[Any]]]:
+    def _filter_structural_and_zero_length(refs_array: List[List[List[Any]]], lines: List[str], state: State, log_prefix: str, allow_relocate: bool = True) -> List[List[List[Any]]]:
         """
         Stage 3.5: refs **재배치** (이전엔 drop 했으나 LLM 의 매핑 의도를 보존하기 위해
         본문 위치로 옮기는 방식으로 전환).
+
+        allow_relocate:
+          - True  (LOCAL 3-stage 패스): 구조 라인 ref 를 같은 user story 본문으로 relocate.
+            LLM 이 본 BC-local 좌표계라 relocate 의도가 유효함.
+          - False (GLOBAL 패스, traceMap 매핑 후): 구조 라인 ref 는 relocate 하지 않고 **drop**.
+            BC-local content 라인이 traceMap 으로 글로벌 구조 라인(예: FR-006 헤더/TOC row)에
+            잘못 떨어진 좌표계 mismatch 케이스인데, 이를 narrative whole-line 으로 relocate 하면
+            L164 같은 거짓 whole-line catch-all 이 양산됨 (WRONG 의 주범). 정직하게 drop.
+            (project-generator 4ad4b81 의 'second relocate 제거' 와 동일 취지.)
 
         처리:
           1) zero-length ref (start == end) — drop (의미 없음)
@@ -673,16 +684,18 @@ class EsTraceUtil:
                 continue
 
             # cls in ('header', 'table') → user story ID 추출 후 본문으로 relocate
-            us_id = _extract_us_id(lines[idx])
-            if us_id and us_id in us_index:
-                target_line = us_index[us_id]
-                new_ref = _line_to_full_range(target_line)
-                if new_ref:
-                    result.append(new_ref)
-                    relocated += 1
-                    continue
+            # (단 allow_relocate=False 인 GLOBAL 패스에서는 relocate 하지 않고 drop)
+            if allow_relocate:
+                us_id = _extract_us_id(lines[idx])
+                if us_id and us_id in us_index:
+                    target_line = us_index[us_id]
+                    new_ref = _line_to_full_range(target_line)
+                    if new_ref:
+                        result.append(new_ref)
+                        relocated += 1
+                        continue
 
-            # ID 추출 못했거나 본문 위치 매핑 실패 — drop
+            # ID 추출 못했거나 본문 위치 매핑 실패, 또는 GLOBAL 패스 — drop
             dropped += 1
 
         if dropped > 0 or relocated > 0:
