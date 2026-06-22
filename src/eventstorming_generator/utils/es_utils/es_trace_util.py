@@ -390,12 +390,18 @@ class EsTraceUtil:
         except ValueError:
             pass
 
-        # 2차: 비어있지 않은 phrase 인데 라인에서 못 찾음 → -1 (sentinel) 반환.
-        # 호출부(_transform_reference)의 'start_col>0 and end_col>0' 검증에서 걸려 이 ref 가
-        # drop 된다. (이전엔 len/1 로 fail-soft → LLM 이 잘못 cite 한 line 전체가 whole-line
-        # catch-all 로 박혀 거짓 매핑 발생. 예: 5개 BC 의 10개 요소가 동일하게 L164(FR-006)
-        # 줄 전체로 오염. relocate(±5) 까지 실패했다면 honest 하게 비우는 게 맞음.)
-        return -1
+        # 2차: 비어있지 않은 phrase 인데 라인에서 못 찾음 → 줄 전체(whole-line) fallback.
+        # LLM 이 cite 한 line 자체는 content 라인일 가능성이 높으므로(구조 라인은 GLOBAL 패스의
+        # relocate-금지 drop 이 별도로 처리), phrase 가 paraphrase 로 안 맞아도 그 라인으로 역추적은
+        # 유지하는 게 맞다.
+        #
+        # 주의: 이전에 phrase-not-found 를 drop(-1) 하도록 바꿨다가, command/event/policy/
+        # readModel 의 refs 가 대량으로 사라지는 회귀가 발생했다(LLM 의 phrase 가 정확 일치하지
+        # 않는 경우가 흔함). L164 거짓 매핑의 실제 원인은 이 fail-soft 가 아니라 GLOBAL 패스의
+        # 구조-라인 relocate(_line_to_full_range, whole-line) 였고, 그건
+        # _filter_structural_and_zero_length(allow_relocate=False) 로 이미 drop 처리됨.
+        # → 여기서는 whole-line 을 복원해 비-Aggregate 요소들의 역추적성을 살린다.
+        return len(line_content) if is_end else 1
 
     @staticmethod
     def _sanitize_refs_array(refs_array: List[List[List[Any]]], lines: List[str], min_line: int, max_line: int) -> List[List[List[Any]]]:
