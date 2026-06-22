@@ -377,19 +377,23 @@ class EsTraceUtil:
         if not line_content:
             return 1
             
-        # 단어가 없는 경우
-        if not words or not isinstance(words, str):
+        # 단어가 없거나 공백뿐인 경우 → 의도적 whole-line (기본값 유지)
+        if not isinstance(words, str) or not words.strip():
             return len(line_content) if is_end else 1
-        
+
         # 1차: 정확한 문구 찾기
         try:
             index = line_content.index(words)
             return index + len(words) if is_end else index + 1
         except ValueError:
             pass
-        
-        # 2차: 매칭 실패 시 기본값 반환
-        return len(line_content) if is_end else 1
+
+        # 2차: 비어있지 않은 phrase 인데 라인에서 못 찾음 → -1 (sentinel) 반환.
+        # 호출부(_transform_reference)의 'start_col>0 and end_col>0' 검증에서 걸려 이 ref 가
+        # drop 된다. (이전엔 len/1 로 fail-soft → LLM 이 잘못 cite 한 line 전체가 whole-line
+        # catch-all 로 박혀 거짓 매핑 발생. 예: 5개 BC 의 10개 요소가 동일하게 L164(FR-006)
+        # 줄 전체로 오염. relocate(±5) 까지 실패했다면 honest 하게 비우는 게 맞음.)
+        return -1
 
     @staticmethod
     def _sanitize_refs_array(refs_array: List[List[List[Any]]], lines: List[str], min_line: int, max_line: int) -> List[List[List[Any]]]:
