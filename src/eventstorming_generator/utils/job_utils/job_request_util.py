@@ -1,5 +1,5 @@
 import asyncio
-import random
+import secrets
 import re
 import time
 import uuid
@@ -232,7 +232,7 @@ class JobRequestUtil:
     @staticmethod
     def _dbuid() -> str:
         def s4():
-            value = int((1 + random.random()) * 0x10000)
+            value = int((1 + secrets.SystemRandom().random()) * 0x10000)
             return format(value, 'x')[1:]
         return ''.join([s4() for _ in range(8)])
     

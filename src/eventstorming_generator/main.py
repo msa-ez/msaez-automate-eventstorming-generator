@@ -123,7 +123,6 @@ async def main():
                     
                     while a2a_session_manager.has_active_sessions():
                         active_count = a2a_session_manager.get_active_session_count()
-                        LoggingUtil.debug("main", f"A2A 세션 대기 중... (활성 세션: {active_count}개)")
                         await asyncio.sleep(5)
                     
                     LoggingUtil.info("main", "모든 A2A 세션이 종료되었습니다.")
@@ -131,12 +130,11 @@ async def main():
                 # 나머지 실행 중인 태스크들 취소
                 for task in pending:
                     if not task.done():
-                        LoggingUtil.debug("main", f"태스크 취소 중: {task}")
                         task.cancel()
                         try:
                             await task
                         except asyncio.CancelledError:
-                            LoggingUtil.debug("main", "태스크가 정상적으로 취소되었습니다.")
+                            pass
                         except Exception as cleanup_error:
                             LoggingUtil.exception("main", "태스크 정리 중 예외 발생", cleanup_error)
                 
@@ -150,12 +148,11 @@ async def main():
             # 실행 중인 태스크들 정리
             for task in tasks:
                 if not task.done():
-                    LoggingUtil.debug("main", f"태스크 취소 중: {task}")
                     task.cancel()
                     try:
                         await task
                     except asyncio.CancelledError:
-                        LoggingUtil.debug("main", "태스크가 정상적으로 취소되었습니다.")
+                        pass
                     except Exception as cleanup_error:
                         LoggingUtil.exception("main", "태스크 정리 중 예외 발생", cleanup_error)
 
@@ -166,7 +163,6 @@ async def process_job_async(job_id: str, complete_job_func: callable):
     
     try:
 
-        LoggingUtil.debug("main", f"Job 시작: {job_id}")
         if not JobUtil.is_valid_job_id(job_id):
             LoggingUtil.warning("main", f"Job 처리 오류: {job_id}, 유효하지 않음")
             return
@@ -199,12 +195,9 @@ async def process_job_async(job_id: str, complete_job_func: callable):
         if _current_job_manager:
             cancellation_event = _current_job_manager.get_job_cancellation_event(job_id)
 
-        LoggingUtil.debug("main", f"Job {job_id} 데이터 로딩 및 전처리 완료, graph 실행 준비")
         # 서브프로세스에서 그래프 실행을 비동기로 관리 (spawn 컨텍스트 사용 — 위 _MP_CTX 주석 참고)
-        LoggingUtil.debug("main", f"Job {job_id} graph 실행 대기 시작 (spawn 모드)")
         process = _MP_CTX.Process(target=_run_graph_in_subprocess, args=(state.model_dump(),))
         process.start()
-        LoggingUtil.debug("main", f"Job {job_id} 자식 프로세스 시작됨 (pid={process.pid})")
 
         try:
             while process.is_alive():
@@ -221,7 +214,6 @@ async def process_job_async(job_id: str, complete_job_func: callable):
                     cancellation_checks.append("cancellation_event")
 
                 if cancellation_checks:
-                    LoggingUtil.debug("main", f"Job {job_id} 취소 신호 감지 ({', '.join(cancellation_checks)}) - 서브프로세스 종료")
                     try:
                         process.terminate()
                     except Exception:
@@ -240,11 +232,9 @@ async def process_job_async(job_id: str, complete_job_func: callable):
                     pass
             process.join(timeout=1)
             
-        LoggingUtil.debug("main", f"Job 완료: {job_id}")
         
     except asyncio.CancelledError:
         # 작업이 취소된 경우 (삭제 요청 등)
-        LoggingUtil.debug("main", f"Job {job_id} 취소됨 (삭제 요청 또는 shutdown)")
         
         # 취소된 경우에는 complete_job_func를 호출하지 않음 (DecentralizedJobManager에서 처리)
         return
@@ -276,7 +266,6 @@ async def process_job_async(job_id: str, complete_job_func: callable):
         # 작업 완료 후 항상 리소스 정리
         try:
 
-            LoggingUtil.debug("main", f"Job 정리: {job_id} 리소스 정리 중...")
             
             # cleanup_job_resources를 executor에서 비동기로 실행
             # (내부의 time.sleep이 asyncio 이벤트 루프를 블록하지 않도록)
@@ -291,10 +280,9 @@ async def process_job_async(job_id: str, complete_job_func: callable):
                 db_system = DatabaseFactory.get_db_system()
                 # Fire and forget 방식으로 삭제 (비동기 실행)
                 asyncio.create_task(asyncio.to_thread(db_system.delete_data, job_request_path))
-                LoggingUtil.debug("main", f"Job 정리 완료: {job_id}")
                 complete_job_func()
             else:
-                LoggingUtil.debug("main", f"Job {job_id} 취소로 인한 정리 - complete_job_func 호출하지 않음")
+                pass
 
         except Exception as cleanup_error:
             LoggingUtil.exception("main", f"Job 정리 오류: {job_id}", cleanup_error)

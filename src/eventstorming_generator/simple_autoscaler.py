@@ -51,12 +51,10 @@ class SimpleAutoScaler:
         try:
             # Pod 내부에서 실행되는 경우
             config.load_incluster_config()
-            LoggingUtil.debug("simple_autoscaler", "Kubernetes incluster config 로드 성공")
         except ConfigException as e:
             # 로컬에서 테스트하는 경우
             try:
                 config.load_kube_config()
-                LoggingUtil.debug("simple_autoscaler", "Kubernetes kube config 로드 성공")
             except ConfigException as kube_error:
                 # Kubernetes 설정이 없는 경우 (Docker Compose 환경 등)
                 LoggingUtil.warning("simple_autoscaler", f"Kubernetes config를 찾을 수 없습니다. Autoscaler가 비활성화됩니다: {kube_error}")
@@ -69,7 +67,6 @@ class SimpleAutoScaler:
         self.core_v1 = client.CoreV1Api()
         
         SimpleAutoScaler._initialized = True
-        LoggingUtil.debug("simple_autoscaler", "SimpleAutoScaler 초기화 완료")
     
     @classmethod
     def instance(cls) -> 'SimpleAutoScaler':
@@ -143,7 +140,6 @@ class SimpleAutoScaler:
                 )
             )
             
-            LoggingUtil.debug("simple_autoscaler", f"Deployment replicas를 {target_replicas}개로 변경")
             return True
             
         except Exception as e:
@@ -179,7 +175,6 @@ class SimpleAutoScaler:
         
         # 스케일 업 쿨다운 확인
         if self.last_scale_action == 'up' and time_since_last_scale < self.scale_up_cooldown:
-            LoggingUtil.debug("simple_autoscaler", f"스케일 업 쿨다운 중 (남은 시간: {self.scale_up_cooldown - time_since_last_scale:.0f}초)")
             return False
         
         return True
@@ -196,12 +191,10 @@ class SimpleAutoScaler:
         
         # 기본 쿨다운 시간 확인
         if self.last_scale_action == 'down' and time_since_last_scale < self.scale_down_cooldown:
-            LoggingUtil.debug("simple_autoscaler", f"스케일 다운 쿨다운 중 (남은 시간: {self.scale_down_cooldown - time_since_last_scale:.0f}초)")
             return False
         
         # 처리 중인 작업이 있으면 스케일 다운 금지
         if processing_jobs > 0:
-            LoggingUtil.debug("simple_autoscaler", f"처리 중인 작업 {processing_jobs}개가 있어 스케일 다운 금지")
             self.scale_down_observation_count = 0
             return False
         
@@ -210,7 +203,6 @@ class SimpleAutoScaler:
             a2a_session_manager = A2ASessionManager.instance()
             if a2a_session_manager.has_active_sessions():
                 active_sessions = a2a_session_manager.get_active_session_count()
-                LoggingUtil.debug("simple_autoscaler", f"활성 A2A 세션 {active_sessions}개가 있어 스케일 다운 금지")
                 self.scale_down_observation_count = 0
                 return False
         except Exception as e:
@@ -221,16 +213,13 @@ class SimpleAutoScaler:
         
         # 충분한 관찰 횟수를 만족했는지 확인
         if self.scale_down_observation_count < self.required_scale_down_observations:
-            LoggingUtil.debug("simple_autoscaler", f"스케일 다운 관찰 중 ({self.scale_down_observation_count}/{self.required_scale_down_observations})")
             return False
         
         # 추가 유예 시간 확인 (마지막 스케일 작업 이후)
         if time_since_last_scale < self.scale_down_grace_period:
             remaining_grace = self.scale_down_grace_period - time_since_last_scale
-            LoggingUtil.debug("simple_autoscaler", f"스케일 다운 유예 시간 중 (남은 시간: {remaining_grace:.0f}초)")
             return False
         
-        LoggingUtil.debug("simple_autoscaler", f"스케일 다운 조건 충족: {self.scale_down_observation_count}회 연속 관찰 완료")
         return True
     
     async def is_leader_pod_async(self) -> bool:
@@ -257,7 +246,7 @@ class SimpleAutoScaler:
             
             is_leader = pod_name == leader_pod_name
             if is_leader:
-                LoggingUtil.debug("simple_autoscaler", f"현재 Pod({pod_name})가 리더입니다")
+                pass
             
             return is_leader
             
@@ -287,9 +276,6 @@ class SimpleAutoScaler:
                 # 목표 replicas 계산
                 desired_replicas = self.calculate_desired_replicas(waiting_jobs, processing_jobs)
                 
-                LoggingUtil.debug("simple_autoscaler", 
-                    f"작업 현황 - 대기: {waiting_jobs}개, 처리중: {processing_jobs}개, "
-                    f"Pod 현황 - 설정: {current_replicas}개, 활성: {active_pods}개, 목표: {desired_replicas}개")
                 
                 # 스케일링 결정
                 if desired_replicas > current_replicas:
@@ -300,7 +286,6 @@ class SimpleAutoScaler:
                             self.last_scale_time = time.time()
                             self.last_scale_action = 'up'
                             self.scale_down_observation_count = 0  # 스케일 업 시 관찰 카운터 리셋
-                            LoggingUtil.debug("simple_autoscaler", f"스케일 업 완료: {current_replicas} -> {desired_replicas}")
                         else:
                             LoggingUtil.warning("simple_autoscaler", f"스케일 업 실패")
                     
@@ -312,13 +297,11 @@ class SimpleAutoScaler:
                             self.last_scale_time = time.time()
                             self.last_scale_action = 'down'
                             self.scale_down_observation_count = 0  # 스케일 다운 후 카운터 리셋
-                            LoggingUtil.debug("simple_autoscaler", f"스케일 다운 완료: {current_replicas} -> {desired_replicas}")
                         else:
                             LoggingUtil.warning("simple_autoscaler", f"스케일 다운 실패")
                 else:
                     # 스케일링이 필요하지 않은 경우
                     self.scale_down_observation_count = 0
-                    LoggingUtil.debug("simple_autoscaler", f"현재 replicas가 목표와 일치함")
                 
                 self.last_processing_jobs_count = processing_jobs
                 await asyncio.sleep(self.scale_check_interval)
