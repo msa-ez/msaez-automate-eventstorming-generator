@@ -59,7 +59,7 @@ class SimpleAutoScaler:
                 # Kubernetes 설정이 없는 경우 (Docker Compose 환경 등)
                 LoggingUtil.warning("simple_autoscaler", f"Kubernetes config를 찾을 수 없습니다. Autoscaler가 비활성화됩니다: {kube_error}")
                 raise kube_error
-        except Exception as e:
+        except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError, client.exceptions.ApiException, config.ConfigException) as e:
             LoggingUtil.exception("simple_autoscaler", "Kubernetes config 로드 중 예상치 못한 오류", e)
             raise
         
@@ -87,7 +87,7 @@ class SimpleAutoScaler:
                 )
             )
             return deployment.spec.replicas
-        except Exception as e:
+        except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError, client.exceptions.ApiException, config.ConfigException) as e:
             LoggingUtil.exception("simple_autoscaler", f"현재 replicas 조회 실패: {e}", e)
             return 1
     
@@ -109,7 +109,7 @@ class SimpleAutoScaler:
                     active_count += 1
             
             return active_count
-        except Exception as e:
+        except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError, client.exceptions.ApiException, config.ConfigException) as e:
             LoggingUtil.exception("simple_autoscaler", f"활성 Pod 수 조회 실패: {e}", e)
             return 1
     
@@ -142,7 +142,7 @@ class SimpleAutoScaler:
             
             return True
             
-        except Exception as e:
+        except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError, client.exceptions.ApiException, config.ConfigException) as e:
             LoggingUtil.exception("simple_autoscaler", f"replicas 변경 실패: {e}", e)
             return False
     
@@ -205,7 +205,7 @@ class SimpleAutoScaler:
                 active_sessions = a2a_session_manager.get_active_session_count()
                 self.scale_down_observation_count = 0
                 return False
-        except Exception as e:
+        except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError, client.exceptions.ApiException, config.ConfigException) as e:
             LoggingUtil.exception("simple_autoscaler", "A2A 세션 확인 중 오류", e)
         
         # 연속 관찰 카운터 증가
@@ -250,7 +250,7 @@ class SimpleAutoScaler:
             
             return is_leader
             
-        except Exception as e:
+        except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError, client.exceptions.ApiException, config.ConfigException) as e:
             LoggingUtil.exception("simple_autoscaler", f"리더 확인 실패: {e}", e)
             return False
     
@@ -306,7 +306,7 @@ class SimpleAutoScaler:
                 self.last_processing_jobs_count = processing_jobs
                 await asyncio.sleep(self.scale_check_interval)
                 
-            except Exception as e:
+            except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError, client.exceptions.ApiException, config.ConfigException) as e:
                 LoggingUtil.exception("simple_autoscaler", f"자동 스케일링 오류: {e}", e)
                 await asyncio.sleep(self.scale_check_interval)
 
@@ -331,7 +331,7 @@ class SimpleAutoScaler:
             
             return waiting_count
             
-        except Exception as e:
+        except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError, client.exceptions.ApiException, config.ConfigException) as e:
             LoggingUtil.exception("simple_autoscaler", "대기 작업 수 계산 오류", e)
             return 0
 
@@ -363,7 +363,7 @@ class SimpleAutoScaler:
             
             return processing_count
             
-        except Exception as e:
+        except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError, client.exceptions.ApiException, config.ConfigException) as e:
             LoggingUtil.exception("simple_autoscaler", "처리 중인 작업 수 계산 오류", e)
             return 0
 
@@ -383,7 +383,7 @@ async def start_autoscaler():
         # 이렇게 하면 태스크가 완료되지 않아 메인 루프가 계속 실행됨
         while True:
             await asyncio.sleep(60)  # 1분마다 체크
-    except Exception as e:
+    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError, client.exceptions.ApiException, config.ConfigException) as e:
         LoggingUtil.exception("simple_autoscaler", "Autoscaler 시작 중 예상치 못한 오류", e)
         # 예상치 못한 오류도 무한 대기로 처리
         while True:

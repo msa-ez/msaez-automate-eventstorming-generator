@@ -50,7 +50,7 @@ class WebhookFriendlyRequestHandler(DefaultRequestHandler):
         while True:
             try:
                 task = await self.task_store.get(task_id)
-            except Exception as e:
+            except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError, httpx.HTTPError) as e:
                 SmartLogger.log(
                     "WARNING",
                     "Failed to fetch task while waiting terminal state",
@@ -73,7 +73,7 @@ class WebhookFriendlyRequestHandler(DefaultRequestHandler):
                     # in-memory store cleanup (best-effort)
                     if self._push_config_store:
                         await self._push_config_store.delete_info(task_id)
-                except Exception as e:
+                except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError, httpx.HTTPError) as e:
                     SmartLogger.log(
                         "ERROR",
                         "Terminal push notification failed",
@@ -140,7 +140,7 @@ class WebhookFriendlyRequestHandler(DefaultRequestHandler):
                         params={"task_id": task_id, "terminal_state": str(latest_state)},
                     )
 
-        except Exception as e:
+        except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError, httpx.HTTPError) as e:
             SmartLogger.log(
                 "ERROR",
                 "Agent execution failed in WebhookFriendlyRequestHandler",

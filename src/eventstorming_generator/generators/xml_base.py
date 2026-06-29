@@ -265,7 +265,7 @@ class XmlBaseGenerator(ABC):
                     f"LLM invoke exceeded hard timeout {hard_timeout:.0f}s "
                     f"(model={self.model_name}, generator={class_name})"
                 )
-            except Exception as e:
+            except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
                 elapsed = time.time() - start
                 LoggingUtil.warning(
                     "xml_base",
@@ -500,7 +500,7 @@ class XmlBaseGenerator(ABC):
 
         try:
             return self.model.get_num_tokens(total_contents)
-        except Exception as e:
+        except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
             LoggingUtil.warning(
                 "xml_base",
                 f"get_num_tokens 실패 — 글자 수 기반 추정치로 폴백합니다 (원인: {e!r})",

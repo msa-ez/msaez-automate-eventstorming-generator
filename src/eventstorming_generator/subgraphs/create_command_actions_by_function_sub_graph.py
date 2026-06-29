@@ -29,7 +29,7 @@ def resume_from_create_command_actions(state: State):
         LogUtil.add_info_log(state, "[COMMAND_ACTIONS_SUBGRAPH] Starting command actions generation process")
         return "prepare"
     
-    except Exception as e:
+    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
         LogUtil.add_exception_object_log(state, "[COMMAND_ACTIONS_SUBGRAPH] Failed during resume_from_create_command_actions", e)
         state.subgraphs.createCommandActionsByFunctionModel.is_failed = True
         return "complete"
@@ -88,7 +88,7 @@ def prepare_command_actions_generation(state: State) -> State:
         
         LogUtil.add_info_log(state, f"[COMMAND_ACTIONS_SUBGRAPH] Preparation completed. Total aggregates to process: {total_aggregates}")
         
-    except Exception as e:
+    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
         LogUtil.add_exception_object_log(state, "[COMMAND_ACTIONS_SUBGRAPH] Failed during command actions generation preparation", e)
         state.subgraphs.createCommandActionsByFunctionModel.is_failed = True
     
@@ -132,7 +132,7 @@ def select_batch_command_actions(state: State) -> State:
             
             model.current_batch = current_batch
         
-    except Exception as e:
+    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
         LogUtil.add_exception_object_log(state, "[COMMAND_ACTIONS_SUBGRAPH] Failed to select command actions batch", e)
         state.subgraphs.createCommandActionsByFunctionModel.is_failed = True
     
@@ -190,7 +190,7 @@ def execute_parallel_workers(state: State) -> State:
                     command_generation_state.is_failed = True
                     return command_generation_state
                     
-            except Exception as e:
+            except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
                 command_generation_state = model.worker_generations.get(worker_id)
                 if command_generation_state:
                     aggregate_name = command_generation_state.target_aggregate_name
@@ -222,7 +222,7 @@ def execute_parallel_workers(state: State) -> State:
                     result_command = future.result()
                     completed_results.append(result_command)
                     
-                except Exception as e:
+                except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
                     aggregate_name = original_command.target_aggregate_name
                     bc_name = original_command.target_bounded_context_name
                     LogUtil.add_exception_object_log(state, f"[COMMAND_ACTIONS_SUBGRAPH] Failed to get worker result for aggregate '{aggregate_name}' in context '{bc_name}'", e)
@@ -242,7 +242,7 @@ def execute_parallel_workers(state: State) -> State:
         
         LogUtil.add_info_log(state, f"[COMMAND_ACTIONS_SUBGRAPH] Parallel execution completed. Successful: {successful_count}, Failed: {failed_count}, Total: {len(completed_results)}")
         
-    except Exception as e:
+    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
         LogUtil.add_exception_object_log(state, "[COMMAND_ACTIONS_SUBGRAPH] Failed during parallel worker execution", e)
         model.is_failed = True
     
@@ -321,7 +321,7 @@ def collect_and_apply_results(state: State) -> State:
         
         LogUtil.add_info_log(state, f"[COMMAND_ACTIONS_SUBGRAPH] Result collection completed. Batch - Successful: {successful_count}, Failed: {failed_count}. Total completed: {total_completed}")
         
-    except Exception as e:
+    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
         LogUtil.add_exception_object_log(state, "[COMMAND_ACTIONS_SUBGRAPH] Failed during result collection and application", e)
         model.is_failed = True
     
@@ -365,7 +365,7 @@ def complete_processing(state: State) -> State:
         model.total_seconds = model.end_time - model.start_time
         model.is_processing = False
 
-    except Exception as e:
+    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
         LogUtil.add_exception_object_log(state, "[COMMAND_ACTIONS_SUBGRAPH] Failed during command actions processing completion", e)
         state.subgraphs.createCommandActionsByFunctionModel.is_failed = True
     
@@ -400,7 +400,7 @@ def decide_next_step(state: State) -> str:
         # 아무것도 없으면 완료
         return "complete"
     
-    except Exception as e:
+    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
         LogUtil.add_exception_object_log(state, "[COMMAND_ACTIONS_SUBGRAPH] Failed during decide_next_step", e)
         state.subgraphs.createCommandActionsByFunctionModel.is_failed = True
         return "complete"

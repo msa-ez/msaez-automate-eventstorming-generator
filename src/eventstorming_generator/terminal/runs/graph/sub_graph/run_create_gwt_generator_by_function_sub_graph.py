@@ -21,7 +21,7 @@ def run_create_gwt_generator_by_function_sub_graph(command_args):
         }, run_name)
         RunHelper.save_es_summarize_result_to_temp_file(result.outputs.esValue, run_name)
 
-    except Exception as e:
+    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
         LoggingUtil.exception(run_name, f"실행 실패", e)
         TerminalHelper.save_dict_to_temp_file({
             "error": str(e)

@@ -73,7 +73,7 @@ class MergeCreatedBoundedContextGeneratorUtil:
                 else:
                     raise ValueError("Generated bounded contexts failed final validation")
                     
-            except Exception as e:
+            except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
                 if retry_count == max_retry_count - 1:
                     # 최종 재시도 실패 시, 원본 데이터에서 중복만 제거하여 반환
                     return MergeCreatedBoundedContextGeneratorUtil._deduplicate_bounded_contexts(

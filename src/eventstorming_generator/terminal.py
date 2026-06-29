@@ -33,7 +33,7 @@ def terminal():
         if handler:
             try:
                 handler(command_name, command_args)
-            except Exception as e:
+            except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
                 print(f"로직 실행 중 오류 발생: {e}")
         else:
             print("유효하지 않은 콘솔 명령어입니다.\n사용 가능한 명령어를 보려면 'help' 명령어를 입력하세요.")

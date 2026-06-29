@@ -52,7 +52,7 @@ class TerminalHelper:
  
             return generator_output["result"]
 
-        except Exception as e:
+        except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
             LoggingUtil.exception(f"run_error_{generator.__class__.__name__}", f"실행 실패", e)
             TerminalHelper.save_dict_to_temp_file({
                 "error": str(e)

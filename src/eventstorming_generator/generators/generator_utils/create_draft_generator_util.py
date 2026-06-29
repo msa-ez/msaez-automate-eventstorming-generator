@@ -71,7 +71,7 @@ class CreateDraftGeneratorUtil:
                 else:
                     raise ValueError("Generated structure failed final validation")
                     
-            except Exception as e:
+            except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
                 last_exception = e
                 if retry_count == max_retry_count - 1:
                     raise RuntimeError(

@@ -17,7 +17,7 @@ def run_create_draft_by_function_sub_graph(command_args):
         state: State = execute_create_draft_by_function_sub_graph()
         RunHelper.save_state_by_after_stop_node(after_stop_node, state, run_name)
 
-    except Exception as e:
+    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
         LoggingUtil.exception(run_name, f"실행 실패", e)
         TerminalHelper.save_dict_to_temp_file({
             "error": str(e)

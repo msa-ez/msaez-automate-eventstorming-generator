@@ -48,7 +48,7 @@ def worker_preprocess_context_mapping(state: State) -> State:
     
     try:
         current_gen.is_preprocess_completed = True
-    except Exception as e:
+    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
         LogUtil.add_exception_object_log(state, f"[CONTEXT_MAPPING_WORKER] Preprocessing failed for worker index: {current_gen.worker_index}", e)
         current_gen.is_failed = True
     
@@ -90,7 +90,7 @@ def worker_generate_context_mapping(state: State) -> State:
         valid_boundedcontext_names = [bc.name for bc in current_gen.boundedContexts]
         current_gen.created_context_mappings = [cm for cm in generator_result.contextMappings if cm.boundedContextName in valid_boundedcontext_names]
         current_gen.generation_complete = True
-    except Exception as e:
+    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
         LogUtil.add_exception_object_log(state, f"[CONTEXT_MAPPING_WORKER] Failed to generate context mapping for worker index: {current_gen.worker_index}", e)
         if current_gen:
             current_gen.retry_count += 1
@@ -115,7 +115,7 @@ def worker_postprocess_context_mapping(state: State) -> State:
         
         current_gen.generation_complete = True
     
-    except Exception as e:
+    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
         LogUtil.add_exception_object_log(state, f"[CONTEXT_MAPPING_WORKER] Postprocessing failed for worker index: {current_gen.worker_index}", e)
         if current_gen:
             current_gen.retry_count += 1
@@ -139,7 +139,7 @@ def worker_validate_context_mapping(state: State) -> State:
             LogUtil.add_error_log(state, f"[CONTEXT_MAPPING_WORKER] Maximum retry count exceeded for worker index: {current_gen.worker_index} (retries: {current_gen.retry_count})")
             current_gen.is_failed = True
         
-    except Exception as e:
+    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
         LogUtil.add_exception_object_log(state, f"[CONTEXT_MAPPING_WORKER] Validation failed for worker index: {current_gen.worker_index}", e)
         current_gen.is_failed = True
 
@@ -175,7 +175,7 @@ def worker_decide_next_step(state: State) -> str:
         # 생성된 Context Mappings가 있으면 후처리 단계로 이동
         return "postprocess"
     
-    except Exception as e:
+    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
         LogUtil.add_exception_object_log(state, "[CONTEXT_MAPPING_WORKER] Failed during worker_decide_next_step", e)
         return "complete"
 
@@ -257,7 +257,7 @@ def create_context_mapping_worker_subgraph():
         try:
             result = State(**compiled_worker.invoke(state, {"recursion_limit": 2147483647}))
             return result
-        except Exception as e:
+        except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
             LogUtil.add_exception_object_log(state, "[CONTEXT_MAPPING_WORKER] Worker execution failed", e)
             current_gen = get_current_generation(state)
             if current_gen:

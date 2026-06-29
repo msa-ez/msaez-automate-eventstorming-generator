@@ -76,7 +76,7 @@ def worker_preprocess_class_id_generation(state: State) -> State:
             specific_summarized_es_value["boundedContexts"].append(specific_bounded_context_data)
         current_gen.summarized_es_value = specific_summarized_es_value
             
-    except Exception as e:
+    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
         LogUtil.add_exception_object_log(state, f"[CLASS_ID_WORKER] Preprocessing failed for references: {', '.join(current_gen.target_references) if current_gen else 'Unknown'}", e)
         current_gen.is_failed = True
     
@@ -138,7 +138,7 @@ def worker_generate_class_id(state: State) -> State:
 
         current_gen.created_actions = actionModels
     
-    except Exception as e:
+    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
         LogUtil.add_exception_object_log(state, f"[CLASS_ID_WORKER] Failed to generate class ID for references: {', '.join(current_gen.target_references) if current_gen else 'Unknown'}", e)
         if current_gen:
             current_gen.retry_count += 1
@@ -181,7 +181,7 @@ def worker_postprocess_class_id_generation(state: State) -> State:
         current_gen.created_actions = actions
         current_gen.generation_complete = True
 
-    except Exception as e:
+    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
         LogUtil.add_exception_object_log(state, f"[CLASS_ID_WORKER] Postprocessing failed for references: {', '.join(current_gen.target_references) if current_gen else 'Unknown'}", e)
         if current_gen:
             current_gen.retry_count += 1
@@ -206,7 +206,7 @@ def worker_validate_class_id_generation(state: State) -> State:
             LogUtil.add_error_log(state, f"[CLASS_ID_WORKER] Max retry count exceeded for class ID generation. References: {', '.join(current_gen.target_references)} (retries: {current_gen.retry_count})")
             current_gen.is_failed = True
     
-    except Exception as e:
+    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
         LogUtil.add_exception_object_log(state, f"[CLASS_ID_WORKER] Validation failed for references: {', '.join(current_gen.target_references) if current_gen else 'Unknown'}", e)
         current_gen.is_failed = True
     
@@ -244,7 +244,7 @@ def worker_decide_next_step(state: State) -> str:
         # 생성된 액션이 있으면 후처리 단계로 이동
         return "postprocess"
     
-    except Exception as e:
+    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
         LogUtil.add_exception_object_log(state, "[CLASS_ID_WORKER] Failed during worker_decide_next_step", e)
         return "complete"
 
@@ -327,7 +327,7 @@ def create_class_id_worker_subgraph():
         try:
             result = State(**compiled_worker.invoke(state, {"recursion_limit": 2147483647}))
             return result
-        except Exception as e:
+        except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
             LogUtil.add_exception_object_log(state, "[CLASS_ID_WORKER] Worker execution failed", e)
             current_gen = get_current_generation(state)
             if current_gen:

@@ -71,7 +71,7 @@ def worker_preprocess_policy_actions(state: State) -> State:
         # 요약된 ES 값 저장
         current_gen.summarized_es_value = summarized_es_value
         
-    except Exception as e:
+    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
         bc_name = current_gen.target_bounded_context_name
         LogUtil.add_exception_object_log(state, f"[POLICY_WORKER] Preprocessing failed for bounded context: '{bc_name}'", e)
         current_gen.is_failed = True
@@ -187,7 +187,7 @@ def worker_generate_policy_actions(state: State) -> State:
         current_gen.extractedPolicies = [policy.model_dump() for policy in generator_result.extractedPolicies]
         current_gen.generation_complete = True
 
-    except Exception as e:
+    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
         LogUtil.add_exception_object_log(state, f"[POLICY_WORKER] Failed to generate policy actions for bounded context: '{bc_name}'", e)
         if current_gen:
             current_gen.retry_count += 1
@@ -225,7 +225,7 @@ def worker_validate_policy_actions(state: State) -> State:
             LogUtil.add_error_log(state, f"[POLICY_WORKER] Maximum retry count exceeded for bounded context '{bc_name}' (retries: {current_gen.retry_count})")
             current_gen.is_failed = True
         
-    except Exception as e:
+    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
         LogUtil.add_exception_object_log(state, f"[POLICY_WORKER] Validation failed for bounded context: '{bc_name}'", e)
         current_gen.is_failed = True
 
@@ -268,7 +268,7 @@ def worker_decide_next_step(state: State) -> str:
         # 생성된 액션이 있으면 후처리 단계로 이동
         return "postprocess"
     
-    except Exception as e:
+    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
         LogUtil.add_exception_object_log(state, "[POLICY_WORKER] Failed during worker_decide_next_step", e)
         return "complete"
 
@@ -361,7 +361,7 @@ def create_policy_actions_worker_subgraph():
         try:
             result = State(**compiled_worker.invoke(state, {"recursion_limit": 2147483647}))
             return result
-        except Exception as e:
+        except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
             LogUtil.add_exception_object_log(state, "[POLICY_WORKER] Worker execution failed", e)
             current_gen = get_current_generation(state)
             if current_gen:

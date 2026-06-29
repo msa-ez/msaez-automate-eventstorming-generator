@@ -29,7 +29,7 @@ def resume_from_create_policy_actions(state: State):
         LogUtil.add_info_log(state, "[POLICY_ACTIONS_SUBGRAPH] Starting policy actions generation process (parallel mode)")
         return "prepare"
     
-    except Exception as e:
+    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
         LogUtil.add_exception_object_log(state, "[POLICY_ACTIONS_SUBGRAPH] Failed during resume_from_create_policy_actions", e)
         state.subgraphs.createPolicyActionsByFunctionModel.is_failed = True
         return "complete"
@@ -75,7 +75,7 @@ def prepare_policy_actions_generation(state: State) -> State:
         
         LogUtil.add_info_log(state, f"[POLICY_ACTIONS_SUBGRAPH] Preparation completed. Total bounded contexts to process: {len(pending_generations)}")
         
-    except Exception as e:
+    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
         LogUtil.add_exception_object_log(state, "[POLICY_ACTIONS_SUBGRAPH] Failed during policy actions generation preparation", e)
         state.subgraphs.createPolicyActionsByFunctionModel.is_failed = True
     
@@ -118,7 +118,7 @@ def select_batch_policy_actions(state: State) -> State:
             
             model.current_batch = current_batch
 
-    except Exception as e:
+    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
         LogUtil.add_exception_object_log(state, "[POLICY_ACTIONS_SUBGRAPH] Failed to select policy batch", e)
         state.subgraphs.createPolicyActionsByFunctionModel.is_failed = True
     
@@ -175,7 +175,7 @@ def execute_parallel_workers(state: State) -> State:
                     policy_generation_state.is_failed = True
                     return policy_generation_state
                     
-            except Exception as e:
+            except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
                 policy_generation_state = model.worker_generations.get(worker_id)
                 if policy_generation_state:
                     bc_name = policy_generation_state.target_bounded_context_name
@@ -206,7 +206,7 @@ def execute_parallel_workers(state: State) -> State:
                     result_policy = future.result()
                     completed_results.append(result_policy)
                                    
-                except Exception as e:
+                except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
                     bc_name = original_policy.target_bounded_context_name
                     LogUtil.add_exception_object_log(state, f"[POLICY_ACTIONS_SUBGRAPH] Failed to get worker result for Policy bounded context '{bc_name}'", e)
                     original_policy.is_failed = True
@@ -225,7 +225,7 @@ def execute_parallel_workers(state: State) -> State:
         
         LogUtil.add_info_log(state, f"[POLICY_ACTIONS_SUBGRAPH] Parallel execution completed. Successful: {successful_count}, Failed: {failed_count}, Total: {len(completed_results)}")
         
-    except Exception as e:
+    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
         LogUtil.add_exception_object_log(state, "[POLICY_ACTIONS_SUBGRAPH] Failed during parallel worker execution", e)
         model.is_failed = True
     
@@ -279,7 +279,7 @@ def collect_and_apply_results(state: State) -> State:
                         policy_result.requirement_index_mapping, state, "[POLICY_ACTIONS_SUBGRAPH]",
                         full_requirements_text=state.inputs.requirements
                     )
-                except Exception as e:
+                except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
                     LogUtil.add_exception_object_log(state, f"[POLICY_ACTIONS_SUBGRAPH] Failed to convert source references for '{bc_name}'", e)
 
                 all_actions.extend(created_actions)
@@ -327,7 +327,7 @@ def collect_and_apply_results(state: State) -> State:
         
         LogUtil.add_info_log(state, f"[POLICY_ACTIONS_SUBGRAPH] Result collection completed. Batch - Successful: {successful_count}, Failed: {failed_count}. Total completed: {total_completed}")
         
-    except Exception as e:
+    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
         LogUtil.add_exception_object_log(state, "[POLICY_ACTIONS_SUBGRAPH] Failed during result collection and application", e)
         model.is_failed = True
     
@@ -365,7 +365,7 @@ def complete_processing(state: State) -> State:
         model.total_seconds = model.end_time - model.start_time
         model.is_processing = False
 
-    except Exception as e:
+    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
         LogUtil.add_exception_object_log(state, "[POLICY_ACTIONS_SUBGRAPH] Failed during policy actions generation process completion", e)
         model.is_failed = True
 
@@ -400,7 +400,7 @@ def decide_next_step(state: State) -> str:
         # 아무것도 없으면 완료
         return "complete"
     
-    except Exception as e:
+    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
         LogUtil.add_exception_object_log(state, "[POLICY_ACTIONS_SUBGRAPH] Failed during decide_next_step", e)
         state.subgraphs.createPolicyActionsByFunctionModel.is_failed = True
         return "complete"

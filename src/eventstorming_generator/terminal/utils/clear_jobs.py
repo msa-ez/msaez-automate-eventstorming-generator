@@ -24,7 +24,7 @@ def clear_jobs(command_args):
         db_system.delete_data(f"requestedJobs/{namespace}")
         LoggingUtil.info(util_name, f"jobs, jobStates, requestedJobs 폴더를 모두 삭제 완료: {namespace}")
 
-    except Exception as e:
+    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
         LoggingUtil.exception(util_name, f"실행 실패", e)
         TerminalHelper.save_dict_to_temp_file({
             "error": str(e)

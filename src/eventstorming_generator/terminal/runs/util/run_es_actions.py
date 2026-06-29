@@ -54,7 +54,7 @@ def run_es_actions_with_actions_collection(command_args):
         TerminalHelper.save_dict_to_temp_file(result, run_name)
         RunHelper.save_es_summarize_result_to_temp_file(result, run_name)
 
-    except Exception as e:
+    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
         LoggingUtil.exception(run_name, "실행 실패", e)
         TerminalHelper.save_dict_to_temp_file(
             {
@@ -73,7 +73,7 @@ def run_es_actions_with_total_actions(command_args):
         TerminalHelper.save_dict_to_temp_file(result, run_name)
         RunHelper.save_es_summarize_result_to_temp_file(result, run_name)
 
-    except Exception as e:
+    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
         LoggingUtil.exception(run_name, "실행 실패", e)
         TerminalHelper.save_dict_to_temp_file(
             {
@@ -101,7 +101,7 @@ def run_es_actions_with_mocked_actions(command_args):
         TerminalHelper.save_dict_to_temp_file(result, run_name)
         RunHelper.save_es_summarize_result_to_temp_file(result, run_name)
 
-    except Exception as e:
+    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
         LoggingUtil.exception(run_name, "실행 실패", e)
         TerminalHelper.save_dict_to_temp_file(
             {

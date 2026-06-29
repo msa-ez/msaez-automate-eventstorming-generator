@@ -93,7 +93,7 @@ class MemoryDBSystem(DatabaseSystem):
                     current_level[path_parts[-1]] = copy.deepcopy(value)
             
             return True
-        except Exception:
+        except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError):
             return False
 
     def clear(self):

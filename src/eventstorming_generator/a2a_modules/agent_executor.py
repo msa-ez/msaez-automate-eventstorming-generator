@@ -232,7 +232,7 @@ class EventStormingAgentExecutor(AgentExecutor):
                 task_id, context_id, job_id, link, event_queue, start_time
             )
             
-        except Exception as e:
+        except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
             SmartLogger.log("ERROR", "Webhook 실행 오류", category=CATEGORY, params={
                 "task_id": task_id,
                 "error_type": type(e).__name__,
@@ -330,7 +330,7 @@ class EventStormingAgentExecutor(AgentExecutor):
                 "mode": "IMMEDIATE_COMPLETE",
             })
             
-        except Exception as e:
+        except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
             SmartLogger.log("ERROR", "즉시 완료 처리 오류", category=CATEGORY, params={
                 "task_id": task_id,
                 "error_type": type(e).__name__,
@@ -458,7 +458,7 @@ class EventStormingAgentExecutor(AgentExecutor):
             })
             raise
             
-        except Exception as e:
+        except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
             SmartLogger.log("ERROR", "모니터링 오류", category=CATEGORY, params={
                 "task_id": task_id,
                 "job_id": job_id,
@@ -474,9 +474,9 @@ class EventStormingAgentExecutor(AgentExecutor):
                 for path in watch_paths:
                     try:
                         db_system.unwatch_data(path)
-                    except Exception:
+                    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError):
                         pass
-            except Exception:
+            except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError):
                 pass
             
             # 세션 해제

@@ -98,7 +98,7 @@ def create_bounded_contexts_to_es_value(state: State):
                 state.inputs.ids.projectId
             )
 
-    except Exception as e:
+    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
         LogUtil.add_exception_object_log(state, f"[ROOT_GRAPH] Failed to create bounded contexts", e)
         state.outputs.lastCompletedRootGraphNode = RG.CREATE_AGGREGATES
         state.outputs.lastCompletedSubGraphNode = RESUME_NODES.CREATE_AGGREGATES.COMPLETE

@@ -95,7 +95,7 @@ class EsTraceUtil:
                             requirement_index_mapping, state, log_prefix
                         )
                         args["refs"] = processed_refs
-                    except Exception as e:
+                    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
                         LogUtil.add_warning_log(state, f"{log_prefix} Failed to process refs for action: {e}")
                 else:
                     # numeric refs 경로 — 3단계 skip 됐으니 BC-local → 원본 좌표 mapping 을 여기서 적용해야
@@ -105,7 +105,7 @@ class EsTraceUtil:
                             args["refs"] = EsTraceUtil._apply_requirement_index_mapping(
                                 args["refs"], requirement_index_mapping
                             )
-                        except Exception as e:
+                        except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
                             LogUtil.add_warning_log(state, f"{log_prefix} Failed to apply mapping for action: {e}")
                 # 노이즈 필터 — full userStory 좌표 기준으로 zero-length / 구조 라인 start drop.
                 # GLOBAL 좌표라 relocate 금지 (allow_relocate=False) — 좌표 mismatch 로 구조
@@ -114,7 +114,7 @@ class EsTraceUtil:
                     args["refs"] = EsTraceUtil._filter_structural_and_zero_length(
                         args["refs"], filter_lines, state, log_prefix, allow_relocate=False
                     )
-                except Exception as e:
+                except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
                     LogUtil.add_warning_log(state, f"{log_prefix} Failed to filter refs for action: {e}")
 
             # Properties 또는 queryParameters의 refs 변환
@@ -136,7 +136,7 @@ class EsTraceUtil:
                                     requirement_index_mapping, state, log_prefix
                                 )
                                 prop["refs"] = processed_refs
-                            except Exception as e:
+                            except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
                                 LogUtil.add_warning_log(state, f"{log_prefix} Failed to process refs for property: {e}")
                         else:
                             # numeric refs 경로 — mapping 직접 적용
@@ -145,14 +145,14 @@ class EsTraceUtil:
                                     prop["refs"] = EsTraceUtil._apply_requirement_index_mapping(
                                         prop["refs"], requirement_index_mapping
                                     )
-                                except Exception as e:
+                                except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
                                     LogUtil.add_warning_log(state, f"{log_prefix} Failed to apply mapping for property: {e}")
                         # 노이즈 필터 — full userStory 좌표 기준 (GLOBAL → relocate 금지)
                         try:
                             prop["refs"] = EsTraceUtil._filter_structural_and_zero_length(
                                 prop["refs"], filter_lines, state, log_prefix, allow_relocate=False
                             )
-                        except Exception as e:
+                        except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
                             LogUtil.add_warning_log(state, f"{log_prefix} Failed to filter refs for property: {e}")
 
         # ── Keyword fallback 제거 (의도적 비활성) ──
@@ -229,7 +229,7 @@ class EsTraceUtil:
         if filled:
             try:
                 LogUtil.add_info_log(state, f"{log_prefix} keyword-fallback: empty refs 였던 {filled} 건을 자동 보강")
-            except Exception:
+            except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError):
                 pass
 
     @staticmethod
@@ -286,7 +286,7 @@ class EsTraceUtil:
 
             return final_refs
             
-        except Exception as e:
+        except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
             LogUtil.add_warning_log(state, f"{log_prefix} Error in 3-stage processing: {e}")
             # 실패 시 기존 로직으로 fallback
             return EsTraceUtil._transform_reference(refs_array, lines, state, log_prefix)
@@ -707,7 +707,7 @@ class EsTraceUtil:
         if dropped > 0 or relocated > 0:
             try:
                 LogUtil.add_info_log(state, f"{log_prefix} stage-3.5 refs: relocated={relocated}, dropped={dropped} (zero-length/non-user-story)")
-            except Exception:
+            except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError):
                 pass
         return result
 

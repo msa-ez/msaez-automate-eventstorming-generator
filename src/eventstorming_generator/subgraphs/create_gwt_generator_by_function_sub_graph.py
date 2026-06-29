@@ -29,7 +29,7 @@ def resume_from_create_gwt(state: State):
         LogUtil.add_info_log(state, "[GWT_SUBGRAPH] Starting GWT generation process (parallel mode)")
         return "prepare"
     
-    except Exception as e:
+    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
         LogUtil.add_exception_object_log(state, "[GWT_SUBGRAPH] Failed during resume_from_create_gwt", e)
         state.subgraphs.createGwtGeneratorByFunctionModel.is_failed = True
         return "complete"
@@ -98,7 +98,7 @@ def prepare_gwt_generation(state: State) -> State:
         
         LogUtil.add_info_log(state, f"[GWT_SUBGRAPH] Preparation completed. Total tasks: {len(pending_generations)} ({total_aggregates} aggregates, {total_commands} commands)")
         
-    except Exception as e:
+    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
         LogUtil.add_exception_object_log(state, "[GWT_SUBGRAPH] Failed during GWT generation preparation", e)
         state.subgraphs.createGwtGeneratorByFunctionModel.is_failed = True
 
@@ -141,7 +141,7 @@ def select_batch_gwt_generation(state: State) -> State:
             
             model.current_batch = current_batch
         
-    except Exception as e:
+    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
         LogUtil.add_exception_object_log(state, "[GWT_SUBGRAPH] Failed to select GWT batch", e)
         state.subgraphs.createGwtGeneratorByFunctionModel.is_failed = True
     
@@ -199,7 +199,7 @@ def execute_parallel_workers(state: State) -> State:
                     gwt_generation_state.retry_count += 1
                     return gwt_generation_state
                     
-            except Exception as e:
+            except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
                 gwt_generation_state = model.worker_generations.get(worker_id)
                 if gwt_generation_state:
                     command_alias = gwt_generation_state.target_command_alias or gwt_generation_state.target_command_id
@@ -231,7 +231,7 @@ def execute_parallel_workers(state: State) -> State:
                     result_gwt = future.result()
                     completed_results.append(result_gwt)
                     
-                except Exception as e:
+                except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
                     command_alias = original_gwt.target_command_alias or original_gwt.target_command_id
                     aggregate_name = original_gwt.target_aggregate_name
                     LogUtil.add_exception_object_log(state, f"[GWT_SUBGRAPH] Failed to get worker result for GWT '{command_alias}' in aggregate '{aggregate_name}'", e)
@@ -251,7 +251,7 @@ def execute_parallel_workers(state: State) -> State:
         
         LogUtil.add_info_log(state, f"[GWT_SUBGRAPH] Parallel execution completed. Successful: {successful_count}, Failed: {failed_count}, Total: {len(completed_results)}")
     
-    except Exception as e:
+    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
         LogUtil.add_exception_object_log(state, "[GWT_SUBGRAPH] Failed during parallel worker execution", e)
         model.is_failed = True
 
@@ -329,7 +329,7 @@ def collect_and_apply_results(state: State) -> State:
         
         LogUtil.add_info_log(state, f"[GWT_SUBGRAPH] Result collection completed. Batch - Successful: {successful_count}, Failed: {failed_count}. Total completed: {total_completed}")
         
-    except Exception as e:
+    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
         LogUtil.add_exception_object_log(state, "[GWT_SUBGRAPH] Failed during result collection and application", e)
         model.is_failed = True
 
@@ -369,7 +369,7 @@ def complete_processing(state: State) -> State:
         model.total_seconds = model.end_time - model.start_time
         model.is_processing = False
 
-    except Exception as e:
+    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
         LogUtil.add_exception_object_log(state, "[GWT_SUBGRAPH] Failed during GWT generation process completion", e)
         model.is_failed = True
 
@@ -404,7 +404,7 @@ def decide_next_step(state: State) -> str:
         # 아무것도 없으면 완료
         return "complete"
     
-    except Exception as e:
+    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
         LogUtil.add_exception_object_log(state, "[GWT_SUBGRAPH] Failed during decide_next_step", e)
         state.subgraphs.createGwtGeneratorByFunctionModel.is_failed = True
         return "complete"

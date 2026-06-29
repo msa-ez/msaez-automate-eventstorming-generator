@@ -20,7 +20,7 @@ def run_draft_worker_subgraph(command_args):
             "logs": state.outputs.logs,
         }, f"{run_name}_created_draft")
 
-    except Exception as e:
+    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
         LoggingUtil.exception(run_name, f"실행 실패", e)
         TerminalHelper.save_dict_to_temp_file({
             "error": str(e)

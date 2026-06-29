@@ -106,7 +106,7 @@ class MergeDraftGeneratorUtil:
                         remaining_bc_names = []
                         break
                         
-                except Exception as e:
+                except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
                     batch_retry_count += 1
                     
                     if batch_retry_count == 0:

@@ -137,7 +137,7 @@ class SmartLogger:
                 with open(filepath, 'w', encoding='utf-8') as f:
                     json.dump(payload, f, ensure_ascii=False, indent=2)
             return filename
-        except Exception as e:
+        except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
             return f"Error saving detail: {str(e)}"
 
     def _should_log(self, level):
