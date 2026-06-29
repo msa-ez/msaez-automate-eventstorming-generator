@@ -2,6 +2,7 @@ from typing import Dict, Any, Optional
 import copy
 
 from .database_system import DatabaseSystem
+import logging
 
 class MemoryDBSystem(DatabaseSystem):
     """
@@ -47,8 +48,8 @@ class MemoryDBSystem(DatabaseSystem):
             if path_parts[-1] in current_level:
                 del current_level[path_parts[-1]]
                 return True
-        except (KeyError, TypeError):
-            pass
+        except (KeyError, TypeError) as _exc:
+            logging.getLogger(__name__).warning(f"예외 발생(무시됨): {_exc}")
         return False
 
     def conditional_update_data(self, path: str, data_to_update: Dict[str, Any], previous_data: Dict[str, Any]) -> bool:

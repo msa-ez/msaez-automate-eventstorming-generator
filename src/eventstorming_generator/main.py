@@ -36,8 +36,8 @@ def _run_graph_in_subprocess(state_dict):
     try:
         sys.stdout.reconfigure(line_buffering=True)
         sys.stderr.reconfigure(line_buffering=True)
-    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError):
-        pass
+    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as _exc:
+        LoggingUtil.warning("main", f"예외 발생(무시됨): {_exc}")
 
     job_label = state_dict.get("inputs", {}).get("jobId", "<unknown>") if isinstance(state_dict, dict) else "<unknown>"
     print(f"[subprocess] graph 자식 프로세스 진입 (job={job_label}, pid={os.getpid()})", flush=True)
@@ -133,8 +133,8 @@ async def main():
                         task.cancel()
                         try:
                             await task
-                        except asyncio.CancelledError:
-                            pass
+                        except asyncio.CancelledError as _exc:
+                            LoggingUtil.warning("main", f"예외 발생(무시됨): {_exc}")
                         except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as cleanup_error:
                             LoggingUtil.exception("main", "태스크 정리 중 예외 발생", cleanup_error)
                 
@@ -151,8 +151,8 @@ async def main():
                     task.cancel()
                     try:
                         await task
-                    except asyncio.CancelledError:
-                        pass
+                    except asyncio.CancelledError as _exc:
+                        LoggingUtil.warning("main", f"예외 발생(무시됨): {_exc}")
                     except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as cleanup_error:
                         LoggingUtil.exception("main", "태스크 정리 중 예외 발생", cleanup_error)
 
@@ -216,8 +216,8 @@ async def process_job_async(job_id: str, complete_job_func: callable):
                 if cancellation_checks:
                     try:
                         process.terminate()
-                    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError):
-                        pass
+                    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as _exc:
+                        LoggingUtil.warning("main", f"예외 발생(무시됨): {_exc}")
                     raise asyncio.CancelledError()
 
             # 프로세스 종료 코드 확인
@@ -228,8 +228,8 @@ async def process_job_async(job_id: str, complete_job_func: callable):
             if process.is_alive():
                 try:
                     process.terminate()
-                except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError):
-                    pass
+                except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as _exc:
+                    LoggingUtil.warning("main", f"예외 발생(무시됨): {_exc}")
             process.join(timeout=1)
             
         

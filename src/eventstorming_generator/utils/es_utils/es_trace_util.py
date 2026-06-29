@@ -5,6 +5,7 @@ from ..log_util import LogUtil
 from ...models import ActionModel
 from ...types import RequirementIndexMapping
 from ...models import State
+import logging
 
 class EsTraceUtil:
     @staticmethod
@@ -229,8 +230,8 @@ class EsTraceUtil:
         if filled:
             try:
                 LogUtil.add_info_log(state, f"{log_prefix} keyword-fallback: empty refs 였던 {filled} 건을 자동 보강")
-            except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError):
-                pass
+            except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as _exc:
+                logging.getLogger(__name__).warning(f"예외 발생(무시됨): {_exc}")
 
     @staticmethod
     def _needs_processing(refs_array: List[List[List[Any]]]) -> bool:
@@ -387,8 +388,8 @@ class EsTraceUtil:
         try:
             index = line_content.index(words)
             return index + len(words) if is_end else index + 1
-        except ValueError:
-            pass
+        except ValueError as _exc:
+            logging.getLogger(__name__).warning(f"예외 발생(무시됨): {_exc}")
 
         # 2차: 비어있지 않은 phrase 인데 라인에서 못 찾음 → 줄 전체(whole-line) fallback.
         # LLM 이 cite 한 line 자체는 content 라인일 가능성이 높으므로(구조 라인은 GLOBAL 패스의
@@ -707,8 +708,8 @@ class EsTraceUtil:
         if dropped > 0 or relocated > 0:
             try:
                 LogUtil.add_info_log(state, f"{log_prefix} stage-3.5 refs: relocated={relocated}, dropped={dropped} (zero-length/non-user-story)")
-            except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError):
-                pass
+            except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as _exc:
+                logging.getLogger(__name__).warning(f"예외 발생(무시됨): {_exc}")
         return result
 
     @staticmethod

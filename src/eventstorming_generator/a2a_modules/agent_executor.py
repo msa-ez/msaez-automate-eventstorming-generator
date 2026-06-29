@@ -474,10 +474,10 @@ class EventStormingAgentExecutor(AgentExecutor):
                 for path in watch_paths:
                     try:
                         db_system.unwatch_data(path)
-                    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError):
-                        pass
-            except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError):
-                pass
+                    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as _exc:
+                        print(f"예외 발생(무시됨): {_exc}")
+            except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as _exc:
+                print(f"예외 발생(무시됨): {_exc}")
             
             # 세션 해제
             session_manager.unregister_session(session_id)

@@ -655,8 +655,8 @@ class JobUtil:
         for job_id in job_ids:
             try:
                 JobUtil.cleanup_job_resources(job_id)
-            except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError, queue.Empty, queue.Full):
-                pass  # 무시
+            except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError, queue.Empty, queue.Full) as _exc:
+                LoggingUtil.warning("job_util", f"예외 발생(무시됨): {_exc}")
     
 
     @staticmethod
