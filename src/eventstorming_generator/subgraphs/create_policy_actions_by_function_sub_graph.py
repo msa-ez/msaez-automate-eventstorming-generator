@@ -176,7 +176,7 @@ def execute_parallel_workers(state: State) -> State:
                     policy_generation_state.is_failed = True
                     return policy_generation_state
                     
-            except CATCHABLE_EXCEPTIONS as e:
+            except Exception as e:
                 policy_generation_state = model.worker_generations.get(worker_id)
                 if policy_generation_state:
                     bc_name = policy_generation_state.target_bounded_context_name
@@ -207,7 +207,7 @@ def execute_parallel_workers(state: State) -> State:
                     result_policy = future.result()
                     completed_results.append(result_policy)
                                    
-                except CATCHABLE_EXCEPTIONS as e:
+                except Exception as e:
                     bc_name = original_policy.target_bounded_context_name
                     LogUtil.add_exception_object_log(state, f"[POLICY_ACTIONS_SUBGRAPH] Failed to get worker result for Policy bounded context '{bc_name}'", e)
                     original_policy.is_failed = True
@@ -226,7 +226,7 @@ def execute_parallel_workers(state: State) -> State:
         
         LogUtil.add_info_log(state, f"[POLICY_ACTIONS_SUBGRAPH] Parallel execution completed. Successful: {successful_count}, Failed: {failed_count}, Total: {len(completed_results)}")
         
-    except CATCHABLE_EXCEPTIONS as e:
+    except Exception as e:
         LogUtil.add_exception_object_log(state, "[POLICY_ACTIONS_SUBGRAPH] Failed during parallel worker execution", e)
         model.is_failed = True
     

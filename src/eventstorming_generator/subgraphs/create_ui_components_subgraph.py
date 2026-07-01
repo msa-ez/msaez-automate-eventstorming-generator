@@ -173,7 +173,7 @@ def execute_parallel_workers(state: State) -> State:
                     ui_generation_state.is_failed = True
                     return ui_generation_state
                     
-            except CATCHABLE_EXCEPTIONS as e:
+            except Exception as e:
                 ui_generation_state = model.worker_generations.get(worker_id)
                 if ui_generation_state:
                     ui_name = ui_generation_state.target_ui_component.get("name", "Unknown")
@@ -204,7 +204,7 @@ def execute_parallel_workers(state: State) -> State:
                     result_ui = future.result()
                     completed_results.append(result_ui)
 
-                except CATCHABLE_EXCEPTIONS as e:
+                except Exception as e:
                     ui_name = original_ui.target_ui_component.get("name", "Unknown")
                     LogUtil.add_exception_object_log(state, f"[UI_COMPONENTS_SUBGRAPH] Failed to get worker result for UI component '{ui_name}'", e)
                     original_ui.is_failed = True
@@ -223,7 +223,7 @@ def execute_parallel_workers(state: State) -> State:
         
         LogUtil.add_info_log(state, f"[UI_COMPONENTS_SUBGRAPH] Parallel execution completed. Successful: {successful_count}, Failed: {failed_count}, Total: {len(completed_results)}")
         
-    except CATCHABLE_EXCEPTIONS as e:
+    except Exception as e:
         LogUtil.add_exception_object_log(state, "[UI_COMPONENTS_SUBGRAPH] Failed during parallel worker execution", e)
         model.is_failed = True
     

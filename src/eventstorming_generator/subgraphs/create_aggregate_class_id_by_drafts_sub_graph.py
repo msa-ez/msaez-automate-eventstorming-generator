@@ -227,7 +227,7 @@ def execute_parallel_workers(state: State) -> State:
                     class_id_generation_state.is_failed = True
                     return class_id_generation_state
                     
-            except CATCHABLE_EXCEPTIONS as e:
+            except Exception as e:
                 class_id_generation_state = model.worker_generations.get(worker_id)
                 if class_id_generation_state:
                     reference_names = ', '.join(class_id_generation_state.target_references)
@@ -260,7 +260,7 @@ def execute_parallel_workers(state: State) -> State:
                     
                     reference_names = ', '.join(original_class_id.target_references)
                     
-                except CATCHABLE_EXCEPTIONS as e:
+                except Exception as e:
                     reference_names = ', '.join(original_class_id.target_references)
                     LogUtil.add_exception_object_log(state, f"[CLASS_ID_SUBGRAPH] Failed to get worker result for class ID references '{reference_names}'", e)
                     original_class_id.is_failed = True
@@ -279,7 +279,7 @@ def execute_parallel_workers(state: State) -> State:
         
         LogUtil.add_info_log(state, f"[CLASS_ID_SUBGRAPH] Parallel execution completed. Successful: {successful_count}, Failed: {failed_count}, Total: {len(completed_results)}")
         
-    except CATCHABLE_EXCEPTIONS as e:
+    except Exception as e:
         LogUtil.add_exception_object_log(state, "[CLASS_ID_SUBGRAPH] Failed during parallel worker execution", e)
         model.is_failed = True
     

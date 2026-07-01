@@ -55,7 +55,7 @@ def _run_graph_in_subprocess(state_dict):
         print(f"[subprocess] graph.invoke 호출 (job={job_label})", flush=True)
         graph.invoke(state, {"recursion_limit": 2147483647})
         print(f"[subprocess] graph.invoke 정상 종료 (job={job_label})", flush=True)
-    except CATCHABLE_EXCEPTIONS as e:
+    except Exception as e:
         # 모든 예외(SystemExit/KeyboardInterrupt 포함)를 stderr 로 즉시 flush 하여 silent crash 방지
         sys.stderr.write(f"[subprocess][ERROR] graph 자식 프로세스 예외 (job={job_label}): {e!r}\n")
         traceback.print_exc(file=sys.stderr)

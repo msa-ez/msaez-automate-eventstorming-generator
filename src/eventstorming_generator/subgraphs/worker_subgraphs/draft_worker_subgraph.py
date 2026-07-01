@@ -242,7 +242,7 @@ def create_draft_worker_subgraph():
         try:
             result = State(**compiled_worker.invoke(state, {"recursion_limit": 2147483647}))
             return result
-        except CATCHABLE_EXCEPTIONS as e:
+        except Exception as e:
             LogUtil.add_exception_object_log(state, "[DRAFT_WORKER] Worker execution failed", e)
             current_gen = get_current_generation(state)
             if current_gen:

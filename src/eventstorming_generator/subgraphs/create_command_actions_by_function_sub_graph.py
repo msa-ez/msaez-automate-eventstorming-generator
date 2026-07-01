@@ -191,7 +191,7 @@ def execute_parallel_workers(state: State) -> State:
                     command_generation_state.is_failed = True
                     return command_generation_state
                     
-            except CATCHABLE_EXCEPTIONS as e:
+            except Exception as e:
                 command_generation_state = model.worker_generations.get(worker_id)
                 if command_generation_state:
                     aggregate_name = command_generation_state.target_aggregate_name
@@ -223,7 +223,7 @@ def execute_parallel_workers(state: State) -> State:
                     result_command = future.result()
                     completed_results.append(result_command)
                     
-                except CATCHABLE_EXCEPTIONS as e:
+                except Exception as e:
                     aggregate_name = original_command.target_aggregate_name
                     bc_name = original_command.target_bounded_context_name
                     LogUtil.add_exception_object_log(state, f"[COMMAND_ACTIONS_SUBGRAPH] Failed to get worker result for aggregate '{aggregate_name}' in context '{bc_name}'", e)
@@ -243,7 +243,7 @@ def execute_parallel_workers(state: State) -> State:
         
         LogUtil.add_info_log(state, f"[COMMAND_ACTIONS_SUBGRAPH] Parallel execution completed. Successful: {successful_count}, Failed: {failed_count}, Total: {len(completed_results)}")
         
-    except CATCHABLE_EXCEPTIONS as e:
+    except Exception as e:
         LogUtil.add_exception_object_log(state, "[COMMAND_ACTIONS_SUBGRAPH] Failed during parallel worker execution", e)
         model.is_failed = True
     

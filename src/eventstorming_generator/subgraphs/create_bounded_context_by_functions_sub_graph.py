@@ -157,7 +157,7 @@ def execute_parallel_workers(state: State) -> State:
                     bounded_context_generation_state.is_failed = True
                     return bounded_context_generation_state
                     
-            except CATCHABLE_EXCEPTIONS as e:
+            except Exception as e:
                 bounded_context_generation_state = model.worker_generations.get(worker_id)
                 worker_index = bounded_context_generation_state.worker_index
                 if bounded_context_generation_state:
@@ -185,7 +185,7 @@ def execute_parallel_workers(state: State) -> State:
                     result_bounded_context = future.result()
                     completed_results.append(result_bounded_context)
                     
-                except CATCHABLE_EXCEPTIONS as e:
+                except Exception as e:
                     worker_index = original_bounded_context.worker_index
                     LogUtil.add_exception_object_log(state, f"[BOUNDED_CONTEXT_SUBGRAPH] Failed to get worker result for bounded context at index {worker_index}", e)
                     original_bounded_context.is_failed = True
@@ -201,7 +201,7 @@ def execute_parallel_workers(state: State) -> State:
         
         LogUtil.add_info_log(state, f"[BOUNDED_CONTEXT_SUBGRAPH] Parallel execution completed. Successful: {successful_count}, Failed: {failed_count}, Total: {len(completed_results)}")
         
-    except CATCHABLE_EXCEPTIONS as e:
+    except Exception as e:
         LogUtil.add_exception_object_log(state, "[BOUNDED_CONTEXT_SUBGRAPH] Failed during parallel worker execution", e)
         model.is_failed = True
     

@@ -172,7 +172,7 @@ def execute_parallel_workers(state: State) -> State:
                     aggregate_generation_state.is_failed = True
                     return aggregate_generation_state
                     
-            except CATCHABLE_EXCEPTIONS as e:
+            except Exception as e:
                 aggregate_generation_state = model.worker_generations.get(worker_id)
                 if aggregate_generation_state:
                     aggregate_name = aggregate_generation_state.target_aggregate_structure.aggregateName
@@ -200,7 +200,7 @@ def execute_parallel_workers(state: State) -> State:
                     result_aggregate = future.result()
                     completed_results.append(result_aggregate)
                     
-                except CATCHABLE_EXCEPTIONS as e:
+                except Exception as e:
                     aggregate_name = original_aggregate.target_aggregate_structure.aggregateName
                     LogUtil.add_exception_object_log(state, f"[AGGREGATE_SUBGRAPH] Failed to get worker result for aggregate '{aggregate_name}'", e)
                     original_aggregate.is_failed = True
@@ -216,7 +216,7 @@ def execute_parallel_workers(state: State) -> State:
         
         LogUtil.add_info_log(state, f"[AGGREGATE_SUBGRAPH] Parallel execution completed. Successful: {successful_count}, Failed: {failed_count}, Total: {len(completed_results)}")
         
-    except CATCHABLE_EXCEPTIONS as e:
+    except Exception as e:
         LogUtil.add_exception_object_log(state, "[AGGREGATE_SUBGRAPH] Failed during parallel worker execution", e)
         model.is_failed = True
     

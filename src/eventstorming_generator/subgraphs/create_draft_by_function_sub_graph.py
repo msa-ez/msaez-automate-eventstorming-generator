@@ -165,7 +165,7 @@ def execute_parallel_drafts(state: State) -> State:
                     draft_generation_state.is_failed = True
                     return draft_generation_state
                     
-            except CATCHABLE_EXCEPTIONS as e:
+            except Exception as e:
                 draft_generation_state = model.worker_generations.get(worker_id)
                 worker_index = draft_generation_state.worker_index
                 if draft_generation_state:
@@ -193,7 +193,7 @@ def execute_parallel_drafts(state: State) -> State:
                     result_draft = future.result()
                     completed_results.append(result_draft)
                     
-                except CATCHABLE_EXCEPTIONS as e:
+                except Exception as e:
                     worker_index = original_draft.worker_index
                     LogUtil.add_exception_object_log(state, f"[DRAFT_BY_FUNCTION_SUBGRAPH] Failed to get worker result for draft at index {worker_index}", e)
                     original_draft.is_failed = True
@@ -209,7 +209,7 @@ def execute_parallel_drafts(state: State) -> State:
         
         LogUtil.add_info_log(state, f"[DRAFT_BY_FUNCTION_SUBGRAPH] Parallel execution completed. Successful: {successful_count}, Failed: {failed_count}, Total: {len(completed_results)}")
         
-    except CATCHABLE_EXCEPTIONS as e:
+    except Exception as e:
         LogUtil.add_exception_object_log(state, "[DRAFT_BY_FUNCTION_SUBGRAPH] Failed during parallel worker execution", e)
         model.is_failed = True
     

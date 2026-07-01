@@ -167,7 +167,7 @@ def execute_parallel_workers(state: State) -> State:
                     context_mapping_generation_state.is_failed = True
                     return context_mapping_generation_state
                     
-            except CATCHABLE_EXCEPTIONS as e:
+            except Exception as e:
                 context_mapping_generation_state = model.worker_generations.get(worker_id)
                 worker_index = context_mapping_generation_state.worker_index
                 if context_mapping_generation_state:
@@ -194,7 +194,7 @@ def execute_parallel_workers(state: State) -> State:
                     result_context_mapping = future.result()
                     completed_results.append(result_context_mapping)
                     
-                except CATCHABLE_EXCEPTIONS as e:
+                except Exception as e:
                     worker_index = original_context_mapping.worker_index
                     LogUtil.add_exception_object_log(state, f"[CONTEXT_MAPPING_SUBGRAPH] Failed to get worker result for context mapping at index {worker_index}", e)
                     original_context_mapping.is_failed = True
@@ -210,7 +210,7 @@ def execute_parallel_workers(state: State) -> State:
         
         LogUtil.add_info_log(state, f"[CONTEXT_MAPPING_SUBGRAPH] Parallel execution completed. Successful: {successful_count}, Failed: {failed_count}, Total: {len(completed_results)}")
         
-    except CATCHABLE_EXCEPTIONS as e:
+    except Exception as e:
         LogUtil.add_exception_object_log(state, "[CONTEXT_MAPPING_SUBGRAPH] Failed during parallel worker execution", e)
         model.is_failed = True
     

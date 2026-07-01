@@ -200,7 +200,7 @@ def execute_parallel_workers(state: State) -> State:
                     gwt_generation_state.retry_count += 1
                     return gwt_generation_state
                     
-            except CATCHABLE_EXCEPTIONS as e:
+            except Exception as e:
                 gwt_generation_state = model.worker_generations.get(worker_id)
                 if gwt_generation_state:
                     command_alias = gwt_generation_state.target_command_alias or gwt_generation_state.target_command_id
@@ -232,7 +232,7 @@ def execute_parallel_workers(state: State) -> State:
                     result_gwt = future.result()
                     completed_results.append(result_gwt)
                     
-                except CATCHABLE_EXCEPTIONS as e:
+                except Exception as e:
                     command_alias = original_gwt.target_command_alias or original_gwt.target_command_id
                     aggregate_name = original_gwt.target_aggregate_name
                     LogUtil.add_exception_object_log(state, f"[GWT_SUBGRAPH] Failed to get worker result for GWT '{command_alias}' in aggregate '{aggregate_name}'", e)
@@ -252,7 +252,7 @@ def execute_parallel_workers(state: State) -> State:
         
         LogUtil.add_info_log(state, f"[GWT_SUBGRAPH] Parallel execution completed. Successful: {successful_count}, Failed: {failed_count}, Total: {len(completed_results)}")
     
-    except CATCHABLE_EXCEPTIONS as e:
+    except Exception as e:
         LogUtil.add_exception_object_log(state, "[GWT_SUBGRAPH] Failed during parallel worker execution", e)
         model.is_failed = True
 

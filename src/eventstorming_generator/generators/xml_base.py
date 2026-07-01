@@ -266,7 +266,7 @@ class XmlBaseGenerator(ABC):
                     f"LLM invoke exceeded hard timeout {hard_timeout:.0f}s "
                     f"(model={self.model_name}, generator={class_name})"
                 )
-            except CATCHABLE_EXCEPTIONS as e:
+            except Exception as e:
                 elapsed = time.time() - start
                 LoggingUtil.warning(
                     "xml_base",
