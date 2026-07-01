@@ -211,7 +211,7 @@ class AceBaseSystem(DatabaseSystem):
         """HTTP 요청 payload(JSON)의 UTF-8 바이트 수를 측정"""
         try:
             return len(json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
-        except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError):
+        except Exception:
             # 측정 실패는 기능적 실패로 간주하지 않음
             return -1
 
@@ -362,7 +362,7 @@ class AceBaseSystem(DatabaseSystem):
                 if self.access_token:
                     try:
                         return operation_func(*args, **kwargs)
-                    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as retry_err:
+                    except Exception as retry_err:
                         LoggingUtil.exception(
                             "acebase_system",
                             f"{operation_name} 재인증 후 재시도 실패",
@@ -371,7 +371,7 @@ class AceBaseSystem(DatabaseSystem):
                         return False if operation_name.endswith(('업로드', '업데이트', '삭제', '시작', '중단')) else None
             LoggingUtil.exception("acebase_system", f"{operation_name} 실패", e)
             return False if operation_name.endswith(('업로드', '업데이트', '삭제', '시작', '중단')) else None
-        except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+        except Exception as e:
             LoggingUtil.exception("acebase_system", f"{operation_name} 실패", e)
             return False if operation_name.endswith(('업로드', '업데이트', '삭제', '시작', '중단')) else None
     
@@ -394,7 +394,7 @@ class AceBaseSystem(DatabaseSystem):
                 partial(sync_func, *args, **kwargs)
             )
             return result
-        except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+        except Exception as e:
             LoggingUtil.exception("acebase_system", f"비동기 {operation_name} 실패", e)
             return False if operation_name.endswith(('업로드', '업데이트', '삭제', '시작', '중단')) else None
     

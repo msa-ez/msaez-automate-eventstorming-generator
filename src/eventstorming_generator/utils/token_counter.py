@@ -41,15 +41,15 @@ class TokenCounter:
         try:
             model = init_chat_model(f"{model_vendor}:{model_name}", **_build_init_kwargs(model_vendor))
             return model.get_num_tokens(text)
-        except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+        except Exception as e:
             try:
                 from ..utils.logging_util import LoggingUtil
                 LoggingUtil.warning(
                     "token_counter",
                     f"get_num_tokens 실패 — 글자 수 기반 추정치로 폴백합니다 (원인: {e!r})",
                 )
-            except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as _exc:
-                LoggingUtil.warning("token_counter", f"예외 발생(무시됨): {_exc}")
+            except Exception:
+                pass
             return max(1, len(text) // 3)
     
     @staticmethod

@@ -21,7 +21,7 @@ def run_create_aggregate_class_id_by_drafts_sub_graph(command_args):
         }, run_name)
         RunHelper.save_es_summarize_result_to_temp_file(result.outputs.esValue, run_name)
 
-    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+    except Exception as e:
         LoggingUtil.exception(run_name, f"실행 실패", e)
         TerminalHelper.save_dict_to_temp_file({
             "error": str(e)

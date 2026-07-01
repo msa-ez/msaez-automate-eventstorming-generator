@@ -28,7 +28,7 @@ async def request_requirements_to_a2a_server(command_args):
 
     try:
         await _streaming_request(BASE_URL, REQUIREMENTS, print_callback)
-    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError, httpx.HTTPError) as e:
+    except Exception as e:
         LoggingUtil.exception(run_name, f"실행 실패", e)
     
     TerminalHelper.save_dict_to_temp_file(logs, f"{run_name}_logs")
@@ -145,7 +145,7 @@ async def _streaming_request(base_url: str, requirements: str, print_callback: c
             print_callback(f"   총 이벤트 수: {event_count}")
             print_callback(f"   전체 응답: {full_response}")
             
-        except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError, httpx.HTTPError) as e:
+        except Exception as e:
             print_callback(f"❌ 에러 발생: {str(e)}")
             import traceback
             traceback.print_exc()

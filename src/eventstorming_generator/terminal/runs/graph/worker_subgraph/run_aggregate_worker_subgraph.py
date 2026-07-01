@@ -19,7 +19,7 @@ def run_aggregate_worker_subgraph(command_args):
             "logs": state.outputs.logs,
         }, f"{run_name}_created_actions")
 
-    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+    except Exception as e:
         LoggingUtil.exception(run_name, f"실행 실패", e)
         TerminalHelper.save_dict_to_temp_file({
             "error": str(e)

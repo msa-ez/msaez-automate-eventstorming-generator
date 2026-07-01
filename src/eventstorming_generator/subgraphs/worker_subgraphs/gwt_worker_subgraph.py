@@ -89,7 +89,7 @@ def worker_preprocess_gwt_generation(state: State) -> State:
         
         current_gen.summarized_es_value = summarized_es_value
         
-    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+    except Exception as e:
         bc_name = current_gen.target_bounded_context_name
         aggregate_name = current_gen.target_aggregate_name
         LogUtil.add_exception_object_log(state, f"[GWT_WORKER] Preprocessing failed for command '{current_gen.target_command_id}' in aggregate '{aggregate_name}' context '{bc_name}'", e)
@@ -196,7 +196,7 @@ def worker_generate_gwt_generation(state: State) -> State:
                     "eventValues": json.loads(gwt.then.eventValues)
                 }
                 processed_gwts.append(processed_gwt)
-            except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+            except Exception as e:
                 LogUtil.add_warning_log(state, f"[GWT_WORKER] Failed to process GWT for command '{current_gen.target_command_id}' in aggregate '{aggregate_name}'. Skipping this GWT: {gwt.scenario}", e)
                 continue
 
@@ -223,7 +223,7 @@ def worker_generate_gwt_generation(state: State) -> State:
         
         current_gen.command_to_replace = command_to_replace
     
-    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+    except Exception as e:
         bc_name = current_gen.target_bounded_context_name
         LogUtil.add_exception_object_log(state, f"[GWT_WORKER] Failed to generate GWT for command '{current_gen.target_command_id}' in aggregate '{aggregate_name}' context '{bc_name}'", e)
         current_gen.retry_count += 1
@@ -249,7 +249,7 @@ def worker_postprocess_gwt_generation(state: State) -> State:
         
         current_gen.generation_complete = True
     
-    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+    except Exception as e:
         bc_name = current_gen.target_bounded_context_name
         LogUtil.add_exception_object_log(state, f"[GWT_WORKER] Postprocessing failed for command '{current_gen.target_command_id}' in aggregate '{aggregate_name}' context '{bc_name}'", e)
         current_gen.retry_count += 1
@@ -274,7 +274,7 @@ def worker_validate_gwt_generation(state: State) -> State:
             LogUtil.add_error_log(state, f"[GWT_WORKER] Maximum retry count exceeded for command '{current_gen.target_command_id}' in aggregate '{aggregate_name}' (retries: {current_gen.retry_count})")
             current_gen.generation_complete = False  # 실패로 표시하되 완료는 False로 유지
         
-    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+    except Exception as e:
         bc_name = current_gen.target_bounded_context_name
         LogUtil.add_exception_object_log(state, f"[GWT_WORKER] Validation failed for command '{current_gen.target_command_id}' in aggregate '{aggregate_name}' context '{bc_name}'", e)
         current_gen.generation_complete = False
@@ -329,7 +329,7 @@ def worker_process_es_summary(state: State) -> State:
             
             LogUtil.add_info_log(state, f"[GWT_WORKER] ES summary completed for command '{current_gen.target_command_id}' in aggregate '{aggregate_name}'")
     
-    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+    except Exception as e:
         bc_name = current_gen.target_bounded_context_name
         LogUtil.add_exception_object_log(state, f"[GWT_WORKER] ES summary processing failed for command '{current_gen.target_command_id}' in aggregate '{aggregate_name}' context '{bc_name}'", e)
         current_gen.retry_count += 1
@@ -382,7 +382,7 @@ def worker_decide_next_step(state: State) -> str:
         # 생성된 GWT가 있으면 후처리 단계로 이동
         return "postprocess"
     
-    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+    except Exception as e:
         LogUtil.add_exception_object_log(state, "[GWT_WORKER] Failed during worker_decide_next_step", e)
         return "complete"
 
@@ -488,7 +488,7 @@ def create_gwt_worker_subgraph():
         try:
             result = State(**compiled_worker.invoke(state, {"recursion_limit": 2147483647}))
             return result
-        except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+        except Exception as e:
             LogUtil.add_exception_object_log(state, "[GWT_WORKER] Worker execution failed", e)
             current_gen = get_current_generation(state)
             if current_gen:

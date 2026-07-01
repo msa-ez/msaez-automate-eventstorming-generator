@@ -16,7 +16,7 @@ async def execute_job_request_util(job_type:str="library_requirements"):
             TerminalHelper.save_dict_to_temp_file(event, f"event_{index}.json", DIR_PATH)
             index += 1
     
-    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+    except Exception as e:
         LoggingUtil.exception(f"execute_job_request_util", f"실행 실패", e)
         TerminalHelper.save_dict_to_temp_file({
             "error": str(e)

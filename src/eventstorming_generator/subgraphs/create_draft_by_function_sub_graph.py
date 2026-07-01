@@ -31,7 +31,7 @@ def resume_from_create_drafts(state: State):
         
         LogUtil.add_info_log(state, "[DRAFT_BY_FUNCTION_SUBGRAPH] Starting draft generation process (parallel mode)")
         return "prepare"
-    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+    except Exception as e:
         LogUtil.add_exception_object_log(state, "[DRAFT_BY_FUNCTION_SUBGRAPH] Failed during resume_from_create_drafts", e)
         state.subgraphs.createDraftByFunctionModel.is_failed = True
         return "complete"
@@ -75,7 +75,7 @@ def prepare_draft_generation(state: State) -> State:
         model.pending_generations = pending_generations
         LogUtil.add_info_log(state, f"[DRAFT_BY_FUNCTION_SUBGRAPH] Preparation completed. Total drafts to process: {len(pending_generations)}")
         
-    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+    except Exception as e:
         LogUtil.add_exception_object_log(state, "[DRAFT_BY_FUNCTION_SUBGRAPH] Failed during draft generation preparation", e)
         state.subgraphs.createDraftByFunctionModel.is_failed = True
     
@@ -113,7 +113,7 @@ def select_batch_drafts(state: State) -> State:
                     current_batch.append(model.pending_generations.pop(0))
             model.current_batch = current_batch
         
-    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+    except Exception as e:
         LogUtil.add_exception_object_log(state, "[DRAFT_BY_FUNCTION_SUBGRAPH] Failed to select draft batch", e)
         state.subgraphs.createDraftByFunctionModel.is_failed = True
     
@@ -164,7 +164,7 @@ def execute_parallel_drafts(state: State) -> State:
                     draft_generation_state.is_failed = True
                     return draft_generation_state
                     
-            except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+            except Exception as e:
                 draft_generation_state = model.worker_generations.get(worker_id)
                 worker_index = draft_generation_state.worker_index
                 if draft_generation_state:
@@ -192,7 +192,7 @@ def execute_parallel_drafts(state: State) -> State:
                     result_draft = future.result()
                     completed_results.append(result_draft)
                     
-                except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+                except Exception as e:
                     worker_index = original_draft.worker_index
                     LogUtil.add_exception_object_log(state, f"[DRAFT_BY_FUNCTION_SUBGRAPH] Failed to get worker result for draft at index {worker_index}", e)
                     original_draft.is_failed = True
@@ -208,7 +208,7 @@ def execute_parallel_drafts(state: State) -> State:
         
         LogUtil.add_info_log(state, f"[DRAFT_BY_FUNCTION_SUBGRAPH] Parallel execution completed. Successful: {successful_count}, Failed: {failed_count}, Total: {len(completed_results)}")
         
-    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+    except Exception as e:
         LogUtil.add_exception_object_log(state, "[DRAFT_BY_FUNCTION_SUBGRAPH] Failed during parallel worker execution", e)
         model.is_failed = True
     
@@ -254,7 +254,7 @@ def collect_and_apply_drafts(state: State) -> State:
         
         LogUtil.add_info_log(state, f"[DRAFT_BY_FUNCTION_SUBGRAPH] Result collection completed. Batch - Successful: {successful_count}, Failed: {failed_count}. Total completed: {total_completed}")
         
-    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+    except Exception as e:
         LogUtil.add_exception_object_log(state, "[DRAFT_BY_FUNCTION_SUBGRAPH] Failed during result collection and application", e)
         model.is_failed = True
     
@@ -301,7 +301,7 @@ def merge_drafts(state: State) -> State:
 
         LogUtil.add_info_log(state, f"[DRAFT_BY_FUNCTION_SUBGRAPH] Merge completed. Total merged drafts: {len(state.inputs.draft.structures)}")
 
-    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+    except Exception as e:
         LogUtil.add_exception_object_log(state, "[DRAFT_BY_FUNCTION_SUBGRAPH] Failed during merge operation", e)
         model.is_failed = True
 
@@ -344,7 +344,7 @@ def complete_processing(state: State) -> State:
         model.total_seconds = model.end_time - model.start_time
         model.is_processing = False
         
-    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+    except Exception as e:
         LogUtil.add_exception_object_log(state, "[DRAFT_BY_FUNCTION_SUBGRAPH] Failed during process completion", e)
         model.is_failed = True
     
@@ -383,7 +383,7 @@ def decide_next_step(state: State) -> str:
         # 아무것도 없으면 완료
         return "complete"
     
-    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+    except Exception as e:
         LogUtil.add_exception_object_log(state, "[DRAFT_BY_FUNCTION_SUBGRAPH] Failed during decide_next_step", e)
         state.subgraphs.createDraftByFunctionModel.is_failed = True
         return "complete"

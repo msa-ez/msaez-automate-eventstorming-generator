@@ -29,7 +29,7 @@ def resume_from_create_ui_components(state: State):
         LogUtil.add_info_log(state, "[UI_COMPONENTS_SUBGRAPH] Starting UI Components generation process (parallel mode)")
         return "prepare"
     
-    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+    except Exception as e:
         LogUtil.add_exception_object_log(state, "[UI_COMPONENTS_SUBGRAPH] Failed during resume_from_create_ui_components", e)
         state.subgraphs.createUiComponentsModel.is_failed = True
         return "complete"
@@ -72,7 +72,7 @@ def prepare_ui_components_generation(state: State) -> State:
 
         state.subgraphs.createUiComponentsModel.pending_generations = pending_generations
         
-    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+    except Exception as e:
         LogUtil.add_exception_object_log(state, "[UI_COMPONENTS_SUBGRAPH] Failed during UI Components generation preparation", e)
         state.subgraphs.createUiComponentsModel.is_failed = True
 
@@ -115,7 +115,7 @@ def select_batch_ui_components(state: State) -> State:
             
             model.current_batch = current_batch
         
-    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+    except Exception as e:
         LogUtil.add_exception_object_log(state, "[UI_COMPONENTS_SUBGRAPH] Failed to select UI batch", e)
         state.subgraphs.createUiComponentsModel.is_failed = True
     
@@ -172,7 +172,7 @@ def execute_parallel_workers(state: State) -> State:
                     ui_generation_state.is_failed = True
                     return ui_generation_state
                     
-            except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+            except Exception as e:
                 ui_generation_state = model.worker_generations.get(worker_id)
                 if ui_generation_state:
                     ui_name = ui_generation_state.target_ui_component.get("name", "Unknown")
@@ -203,7 +203,7 @@ def execute_parallel_workers(state: State) -> State:
                     result_ui = future.result()
                     completed_results.append(result_ui)
 
-                except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+                except Exception as e:
                     ui_name = original_ui.target_ui_component.get("name", "Unknown")
                     LogUtil.add_exception_object_log(state, f"[UI_COMPONENTS_SUBGRAPH] Failed to get worker result for UI component '{ui_name}'", e)
                     original_ui.is_failed = True
@@ -222,7 +222,7 @@ def execute_parallel_workers(state: State) -> State:
         
         LogUtil.add_info_log(state, f"[UI_COMPONENTS_SUBGRAPH] Parallel execution completed. Successful: {successful_count}, Failed: {failed_count}, Total: {len(completed_results)}")
         
-    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+    except Exception as e:
         LogUtil.add_exception_object_log(state, "[UI_COMPONENTS_SUBGRAPH] Failed during parallel worker execution", e)
         model.is_failed = True
     
@@ -296,7 +296,7 @@ def collect_and_apply_results(state: State) -> State:
         
         LogUtil.add_info_log(state, f"[UI_COMPONENTS_SUBGRAPH] Result collection completed. Batch - Successful: {successful_count}, Failed: {failed_count}. Total completed: {total_completed}")
         
-    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+    except Exception as e:
         LogUtil.add_exception_object_log(state, "[UI_COMPONENTS_SUBGRAPH] Failed during result collection and application", e)
         model.is_failed = True
     
@@ -334,7 +334,7 @@ def complete_processing(state: State) -> State:
         model.total_seconds = model.end_time - model.start_time
         model.is_processing = False
 
-    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+    except Exception as e:
         LogUtil.add_exception_object_log(state, "[UI_COMPONENTS_SUBGRAPH] Failed during UI Components generation process completion", e)
         model.is_failed = True
 
@@ -369,7 +369,7 @@ def decide_next_step(state: State) -> str:
         # 아무것도 없으면 완료
         return "complete"
     
-    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+    except Exception as e:
         LogUtil.add_exception_object_log(state, "[UI_COMPONENTS_SUBGRAPH] Failed during decide_next_step", e)
         state.subgraphs.createUiComponentsModel.is_failed = True
         return "complete"

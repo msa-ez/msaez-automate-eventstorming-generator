@@ -72,7 +72,7 @@ class DecentralizedJobManager:
                 
                 await asyncio.sleep(15)  # 15초마다 체크
                 
-            except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+            except Exception as e:
                 LoggingUtil.exception("decentralized_job_manager", f"작업 모니터링 오류", e)
                 await asyncio.sleep(15)
         
@@ -122,7 +122,7 @@ class DecentralizedJobManager:
             try:
                 # 태스크에서 예외가 발생했는지 확인
                 await self.current_task
-            except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+            except Exception as e:
                 LoggingUtil.exception("decentralized_job_manager", f"Job {self.current_job_id} 처리 중 오류", e)
             finally:
                 self.current_task = None
@@ -198,7 +198,7 @@ class DecentralizedJobManager:
                 else:
                     return False
                 
-            except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+            except Exception as e:
                 LoggingUtil.exception("decentralized_job_manager", f"작업 클레임 실패", e)
                 return False
         
@@ -242,7 +242,7 @@ class DecentralizedJobManager:
                 
                 return False
                 
-            except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+            except Exception as e:
                 LoggingUtil.exception("decentralized_job_manager", f"작업 클레임 실패", e)
         return False
     
@@ -298,7 +298,7 @@ class DecentralizedJobManager:
                 Config.get_requested_job_path(self.current_job_id),
                 heartbeat_data
             )
-        except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+        except Exception as e:
             LoggingUtil.exception("decentralized_job_manager", f"Heartbeat 실패", e)
     
 
@@ -340,7 +340,7 @@ class DecentralizedJobManager:
                         {'waitingJobCount': waiting_count}
                     )
                     
-        except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+        except Exception as e:
             LoggingUtil.exception("decentralized_job_manager", f"waitingJobCount 업데이트 오류", e)
     
 
@@ -385,7 +385,7 @@ class DecentralizedJobManager:
                     else:
                         # 작업 복구 시도
                         await self.reset_failed_job(job_id, recovery_count)
-        except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+        except Exception as e:
             LoggingUtil.exception("decentralized_job_manager", f"실패 작업 복구 오류", e)
 
     async def mark_job_as_failed(self, job_id: str):
@@ -402,7 +402,7 @@ class DecentralizedJobManager:
                 }
             )
             LoggingUtil.error("decentralized_job_manager", f"작업 {job_id}가 영구 실패 처리되었습니다.")
-        except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+        except Exception as e:
             LoggingUtil.exception("decentralized_job_manager", f"작업 {job_id} 실패 처리 중 오류", e)
     
     async def reset_failed_job(self, job_id: str, current_recovery_count: int):
@@ -419,7 +419,7 @@ class DecentralizedJobManager:
                 }
             )
             LoggingUtil.info("decentralized_job_manager", f"실패 작업 {job_id} 초기화 완료 (복구 시도: {current_recovery_count + 1})")
-        except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+        except Exception as e:
             LoggingUtil.exception("decentralized_job_manager", f"실패 작업 초기화 오류", e)
     
     
@@ -457,7 +457,7 @@ class DecentralizedJobManager:
             for job_id, state_data in removal_requests.items():
                 await self.handle_job_removal_request(job_id, requested_jobs)
                 
-        except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+        except Exception as e:
             LoggingUtil.exception("decentralized_job_manager", f"삭제 요청 처리 오류", e)
 
     async def handle_job_removal_request(self, job_id: str, requested_jobs: dict):
@@ -495,7 +495,7 @@ class DecentralizedJobManager:
                 # orphan jobState 삭제 처리
                 await self.handle_orphan_job_state_removal(job_id)
                 
-        except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+        except Exception as e:
             LoggingUtil.exception("decentralized_job_manager", f"작업 {job_id} 삭제 요청 처리 오류", e)
 
     async def handle_current_job_removal(self, job_id: str):
@@ -517,7 +517,7 @@ class DecentralizedJobManager:
                     await self.current_task
                 except asyncio.CancelledError:
                     pass
-                except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+                except Exception as e:
                     LoggingUtil.exception("decentralized_job_manager", f"작업 {job_id} 태스크 취소 중 오류", e)
             
             # 순차적으로 데이터 삭제: requestedJobs → jobs → jobStates
@@ -533,7 +533,7 @@ class DecentralizedJobManager:
             self.job_removal_requested = False
             
             
-        except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+        except Exception as e:
             LoggingUtil.exception("decentralized_job_manager", f"현재 작업 {job_id} 삭제 처리 오류", e)
 
     async def handle_unassigned_job_removal(self, job_id: str):
@@ -544,7 +544,7 @@ class DecentralizedJobManager:
             await self.delete_job_data_sequentially(job_id, include_requested=True)
             
             
-        except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+        except Exception as e:
             LoggingUtil.exception("decentralized_job_manager", f"할당되지 않은 작업 {job_id} 삭제 처리 오류", e)
 
     async def handle_completed_job_removal(self, job_id: str):
@@ -555,7 +555,7 @@ class DecentralizedJobManager:
             await self.delete_job_data_sequentially(job_id, include_requested=False)
             
             
-        except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+        except Exception as e:
             LoggingUtil.exception("decentralized_job_manager", f"완료된 작업 {job_id} 삭제 처리 오류", e)
 
     async def handle_orphan_job_state_removal(self, job_id: str):
@@ -572,7 +572,7 @@ class DecentralizedJobManager:
             else:
                 LoggingUtil.warning("decentralized_job_manager", f"orphan jobState {job_id} 삭제 실패")
                 
-        except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+        except Exception as e:
             LoggingUtil.exception("decentralized_job_manager", f"orphan jobState {job_id} 삭제 처리 오류", e)
 
     async def delete_job_data_sequentially(self, job_id: str, include_requested: bool = True):
@@ -610,5 +610,5 @@ class DecentralizedJobManager:
             else:
                 LoggingUtil.warning("decentralized_job_manager", f"jobStates에서 {job_id} 삭제 실패")
                 
-        except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+        except Exception as e:
             LoggingUtil.exception("decentralized_job_manager", f"작업 {job_id} 순차 삭제 오류", e)

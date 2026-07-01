@@ -29,7 +29,7 @@ def resume_from_create_class_id(state: State):
         LogUtil.add_info_log(state, "[CLASS_ID_SUBGRAPH] Starting class ID generation process (parallel mode)")
         return "prepare"
     
-    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+    except Exception as e:
         LogUtil.add_exception_object_log(state, "[CLASS_ID_SUBGRAPH] Failed during resume_from_create_class_id", e)
         state.subgraphs.createAggregateClassIdByDraftsModel.is_failed = True
         return "complete"
@@ -126,7 +126,7 @@ def prepare_class_id_generation(state: State) -> State:
         else:
             LogUtil.add_info_log(state, "[CLASS_ID_SUBGRAPH] No aggregate references found, skipping class ID generation")
         
-    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+    except Exception as e:
         LogUtil.add_exception_object_log(state, "[CLASS_ID_SUBGRAPH] Failed during class ID generation preparation", e)
         state.subgraphs.createAggregateClassIdByDraftsModel.is_failed = True
     
@@ -169,7 +169,7 @@ def select_batch_class_id(state: State) -> State:
             
             model.current_batch = current_batch
         
-    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+    except Exception as e:
         LogUtil.add_exception_object_log(state, "[CLASS_ID_SUBGRAPH] Failed to select class ID batch", e)
         state.subgraphs.createAggregateClassIdByDraftsModel.is_failed = True
     
@@ -226,7 +226,7 @@ def execute_parallel_workers(state: State) -> State:
                     class_id_generation_state.is_failed = True
                     return class_id_generation_state
                     
-            except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+            except Exception as e:
                 class_id_generation_state = model.worker_generations.get(worker_id)
                 if class_id_generation_state:
                     reference_names = ', '.join(class_id_generation_state.target_references)
@@ -259,7 +259,7 @@ def execute_parallel_workers(state: State) -> State:
                     
                     reference_names = ', '.join(original_class_id.target_references)
                     
-                except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+                except Exception as e:
                     reference_names = ', '.join(original_class_id.target_references)
                     LogUtil.add_exception_object_log(state, f"[CLASS_ID_SUBGRAPH] Failed to get worker result for class ID references '{reference_names}'", e)
                     original_class_id.is_failed = True
@@ -278,7 +278,7 @@ def execute_parallel_workers(state: State) -> State:
         
         LogUtil.add_info_log(state, f"[CLASS_ID_SUBGRAPH] Parallel execution completed. Successful: {successful_count}, Failed: {failed_count}, Total: {len(completed_results)}")
         
-    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+    except Exception as e:
         LogUtil.add_exception_object_log(state, "[CLASS_ID_SUBGRAPH] Failed during parallel worker execution", e)
         model.is_failed = True
     
@@ -385,7 +385,7 @@ def collect_and_apply_results(state: State) -> State:
         
         LogUtil.add_info_log(state, f"[CLASS_ID_SUBGRAPH] Result collection completed. Batch - Successful: {successful_count}, Failed: {failed_count}. Total completed: {total_completed}")
         
-    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+    except Exception as e:
         LogUtil.add_exception_object_log(state, "[CLASS_ID_SUBGRAPH] Failed during result collection and application", e)
         model.is_failed = True
     
@@ -427,7 +427,7 @@ def complete_processing(state: State) -> State:
         model.total_seconds = model.end_time - model.start_time
         model.is_processing = False
 
-    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+    except Exception as e:
         LogUtil.add_exception_object_log(state, "[CLASS_ID_SUBGRAPH] Failed during class ID generation process completion", e)
         model.is_failed = True
 
@@ -462,7 +462,7 @@ def decide_next_step(state: State) -> str:
         # 아무것도 없으면 완료
         return "complete"
     
-    except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+    except Exception as e:
         LogUtil.add_exception_object_log(state, "[CLASS_ID_SUBGRAPH] Failed during decide_next_step", e)
         state.subgraphs.createAggregateClassIdByDraftsModel.is_failed = True
         return "complete"

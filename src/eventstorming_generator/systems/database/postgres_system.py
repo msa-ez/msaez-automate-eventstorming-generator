@@ -225,7 +225,7 @@ class PostgresSystem(DatabaseSystem):
     def _safe(self, op_name: str, fn: Callable, default: Any) -> Any:
         try:
             return fn()
-        except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:  # noqa: BLE001
+        except Exception as e:  # noqa: BLE001
             LoggingUtil.exception("postgres_system", f"{op_name} 실패", e)
             return default
 

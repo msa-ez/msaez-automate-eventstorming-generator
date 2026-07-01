@@ -62,7 +62,7 @@ class JobRequirementsUtil:
             
             return result
             
-        except (OSError, ValueError, TypeError, LookupError, AttributeError, RuntimeError, ImportError, ArithmeticError, AssertionError, StopIteration, StopAsyncIteration, BufferError) as e:
+        except Exception as e:
             logger.exception(f"Failed to parse requirements: {e}")
             return requirements
     
