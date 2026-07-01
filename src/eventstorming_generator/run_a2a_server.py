@@ -274,7 +274,7 @@ def run_a2a_server(host: str = "0.0.0.0", port: int = 5000):
     if a2a_host_env:
         host = a2a_host_env
     elif Config.is_local_run():
-        host = "localhost"
+        host = os.getenv('A2A_LOCAL_HOST', 'localhost')
 
     a2a_external_url = Config.a2a_external_url()
     SmartLogger.log("INFO", "A2A External URL 설정", category=CATEGORY, params={
