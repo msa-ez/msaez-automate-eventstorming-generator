@@ -4,6 +4,7 @@ load_dotenv()
 
 from eventstorming_generator.terminal import command_handlers
 from eventstorming_generator.utils import ListUtil
+from eventstorming_generator.utils.catchable_exceptions import CATCHABLE_EXCEPTIONS
 
 previous_command = None
 def terminal():
@@ -33,7 +34,7 @@ def terminal():
         if handler:
             try:
                 handler(command_name, command_args)
-            except Exception as e:
+            except CATCHABLE_EXCEPTIONS as e:
                 print(f"로직 실행 중 오류 발생: {e}")
         else:
             print("유효하지 않은 콘솔 명령어입니다.\n사용 가능한 명령어를 보려면 'help' 명령어를 입력하세요.")

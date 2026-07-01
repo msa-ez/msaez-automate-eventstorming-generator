@@ -14,6 +14,7 @@ from ....utils import LoggingUtil
 from ...terminal_helper import TerminalHelper
 from ..run_helper import RunHelper
 from ..mocks import request_requirements_to_a2a_server_inputs
+from eventstorming_generator.utils.catchable_exceptions import CATCHABLE_EXCEPTIONS
 
 async def request_requirements_to_a2a_server(command_args):
     run_name = "request_requirements_to_a2a_server"
@@ -28,7 +29,7 @@ async def request_requirements_to_a2a_server(command_args):
 
     try:
         await _streaming_request(BASE_URL, REQUIREMENTS, print_callback)
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LoggingUtil.exception(run_name, f"실행 실패", e)
     
     TerminalHelper.save_dict_to_temp_file(logs, f"{run_name}_logs")
@@ -145,7 +146,7 @@ async def _streaming_request(base_url: str, requirements: str, print_callback: c
             print_callback(f"   총 이벤트 수: {event_count}")
             print_callback(f"   전체 응답: {full_response}")
             
-        except Exception as e:
+        except CATCHABLE_EXCEPTIONS as e:
             print_callback(f"❌ 에러 발생: {str(e)}")
             import traceback
             traceback.print_exc()

@@ -27,6 +27,7 @@ except ImportError:  # 의존성 미설치 시 import 단계에서 죽지 않도
 
 from ...utils.logging_util import LoggingUtil
 from .database_system import DatabaseSystem
+from eventstorming_generator.utils.catchable_exceptions import CATCHABLE_EXCEPTIONS
 
 
 @dataclass
@@ -225,7 +226,7 @@ class PostgresSystem(DatabaseSystem):
     def _safe(self, op_name: str, fn: Callable, default: Any) -> Any:
         try:
             return fn()
-        except Exception as e:  # noqa: BLE001
+        except CATCHABLE_EXCEPTIONS as e:  # noqa: BLE001
             LoggingUtil.exception("postgres_system", f"{op_name} 실패", e)
             return default
 

@@ -2,6 +2,7 @@ from typing import Dict, Any, Optional
 import copy
 
 from .database_system import DatabaseSystem
+from eventstorming_generator.utils.catchable_exceptions import CATCHABLE_EXCEPTIONS
 
 class MemoryDBSystem(DatabaseSystem):
     """
@@ -93,7 +94,7 @@ class MemoryDBSystem(DatabaseSystem):
                     current_level[path_parts[-1]] = copy.deepcopy(value)
             
             return True
-        except Exception:
+        except CATCHABLE_EXCEPTIONS:
             return False
 
     def clear(self):

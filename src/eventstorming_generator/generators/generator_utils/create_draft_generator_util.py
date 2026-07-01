@@ -2,6 +2,7 @@ from typing import List, Set
 
 from ...models import BoundedContextStructureModel, BoundedContextInfoModel, CreateDraftGeneratorOutput, AggregateInfoModel, EnumerationInfoModel, ValueObjectInfoModel, ValueObjectInfoNoRefModel
 from ...generators import CreateDraftGenerator
+from eventstorming_generator.utils.catchable_exceptions import CATCHABLE_EXCEPTIONS
 
 
 class CreateDraftGeneratorUtil:
@@ -71,7 +72,7 @@ class CreateDraftGeneratorUtil:
                 else:
                     raise ValueError("Generated structure failed final validation")
                     
-            except Exception as e:
+            except CATCHABLE_EXCEPTIONS as e:
                 last_exception = e
                 if retry_count == max_retry_count - 1:
                     raise RuntimeError(

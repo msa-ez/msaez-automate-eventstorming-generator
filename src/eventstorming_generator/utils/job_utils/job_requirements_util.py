@@ -1,6 +1,7 @@
 import json
 import logging
 from typing import Any
+from eventstorming_generator.utils.catchable_exceptions import CATCHABLE_EXCEPTIONS
 
 
 logger = logging.getLogger(__name__)
@@ -62,7 +63,7 @@ class JobRequirementsUtil:
             
             return result
             
-        except Exception as e:
+        except CATCHABLE_EXCEPTIONS as e:
             logger.exception(f"Failed to parse requirements: {e}")
             return requirements
     

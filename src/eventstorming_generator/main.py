@@ -15,6 +15,7 @@ from eventstorming_generator.config import Config
 from eventstorming_generator.run_a2a_server import run_a2a_server
 from eventstorming_generator.simple_autoscaler import start_autoscaler
 from eventstorming_generator.systems.database.database_factory import DatabaseFactory
+from eventstorming_generator.utils.catchable_exceptions import CATCHABLE_EXCEPTIONS
 
 # 전역 job_manager 인스턴스 (process_job_async에서 접근하기 위함)
 _current_job_manager: DecentralizedJobManager = None
@@ -36,7 +37,7 @@ def _run_graph_in_subprocess(state_dict):
     try:
         sys.stdout.reconfigure(line_buffering=True)
         sys.stderr.reconfigure(line_buffering=True)
-    except Exception:
+    except CATCHABLE_EXCEPTIONS:
         pass
 
     job_label = state_dict.get("inputs", {}).get("jobId", "<unknown>") if isinstance(state_dict, dict) else "<unknown>"
@@ -54,7 +55,7 @@ def _run_graph_in_subprocess(state_dict):
         print(f"[subprocess] graph.invoke 호출 (job={job_label})", flush=True)
         graph.invoke(state, {"recursion_limit": 2147483647})
         print(f"[subprocess] graph.invoke 정상 종료 (job={job_label})", flush=True)
-    except BaseException as e:
+    except CATCHABLE_EXCEPTIONS as e:
         # 모든 예외(SystemExit/KeyboardInterrupt 포함)를 stderr 로 즉시 flush 하여 silent crash 방지
         sys.stderr.write(f"[subprocess][ERROR] graph 자식 프로세스 예외 (job={job_label}): {e!r}\n")
         traceback.print_exc(file=sys.stderr)
@@ -135,13 +136,13 @@ async def main():
                             await task
                         except asyncio.CancelledError:
                             pass
-                        except Exception as cleanup_error:
+                        except CATCHABLE_EXCEPTIONS as cleanup_error:
                             LoggingUtil.exception("main", "태스크 정리 중 예외 발생", cleanup_error)
                 
                 LoggingUtil.info("main", "메인 함수 정상 종료")
                 break  # while 루프 종료
             
-        except Exception as e:
+        except CATCHABLE_EXCEPTIONS as e:
             restart_count += 1
             LoggingUtil.exception("main", f"메인 함수에서 예외 발생 (재시작 횟수: {restart_count})", e)
             
@@ -153,7 +154,7 @@ async def main():
                         await task
                     except asyncio.CancelledError:
                         pass
-                    except Exception as cleanup_error:
+                    except CATCHABLE_EXCEPTIONS as cleanup_error:
                         LoggingUtil.exception("main", "태스크 정리 중 예외 발생", cleanup_error)
 
             continue
@@ -216,7 +217,7 @@ async def process_job_async(job_id: str, complete_job_func: callable):
                 if cancellation_checks:
                     try:
                         process.terminate()
-                    except Exception:
+                    except CATCHABLE_EXCEPTIONS:
                         pass
                     raise asyncio.CancelledError()
 
@@ -228,7 +229,7 @@ async def process_job_async(job_id: str, complete_job_func: callable):
             if process.is_alive():
                 try:
                     process.terminate()
-                except Exception:
+                except CATCHABLE_EXCEPTIONS:
                     pass
             process.join(timeout=1)
             
@@ -239,7 +240,7 @@ async def process_job_async(job_id: str, complete_job_func: callable):
         # 취소된 경우에는 complete_job_func를 호출하지 않음 (DecentralizedJobManager에서 처리)
         return
         
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LoggingUtil.exception("main", f"Job 처리 오류: {job_id}", e)
 
         # state가 초기화되었는지 확인 후 오류 처리
@@ -259,7 +260,7 @@ async def process_job_async(job_id: str, complete_job_func: callable):
                     state.outputs.isFailed = True
                     LogUtil.add_exception_object_log(state, f"Job 처리 오류: {job_id}", e)
                     JobUtil.update_job_to_firebase_fire_and_forget(state)
-        except Exception as state_error:
+        except CATCHABLE_EXCEPTIONS as state_error:
             LoggingUtil.exception("main", f"Job 오류 처리 중 state 생성 실패: {job_id}", state_error)
         
     finally:
@@ -284,7 +285,7 @@ async def process_job_async(job_id: str, complete_job_func: callable):
             else:
                 pass
 
-        except Exception as cleanup_error:
+        except CATCHABLE_EXCEPTIONS as cleanup_error:
             LoggingUtil.exception("main", f"Job 정리 오류: {job_id}", cleanup_error)
 
 if __name__ == "__main__":

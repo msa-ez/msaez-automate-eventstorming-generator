@@ -8,6 +8,7 @@ from functools import partial
 from ...utils.logging_util import LoggingUtil
 from .database_system import DatabaseSystem
 from ...config import Config
+from eventstorming_generator.utils.catchable_exceptions import CATCHABLE_EXCEPTIONS
 
 class FirebaseSystem(DatabaseSystem):
     _instance: Optional['FirebaseSystem'] = None
@@ -104,7 +105,7 @@ class FirebaseSystem(DatabaseSystem):
         """
         try:
             return operation_func(*args, **kwargs)
-        except Exception as e:
+        except CATCHABLE_EXCEPTIONS as e:
             LoggingUtil.exception("firebase_system", f"{operation_name} 실패", e)
             return False if operation_name.endswith(('업로드', '업데이트', '삭제', '시작', '중단')) else None
 
@@ -127,7 +128,7 @@ class FirebaseSystem(DatabaseSystem):
                 partial(sync_func, *args, **kwargs)
             )
             return result
-        except Exception as e:
+        except CATCHABLE_EXCEPTIONS as e:
             LoggingUtil.exception("firebase_system", f"비동기 {operation_name} 실패", e)
             return False if operation_name.endswith(('업로드', '업데이트', '삭제', '시작', '중단')) else None
 
@@ -148,7 +149,7 @@ class FirebaseSystem(DatabaseSystem):
                     loop.run_until_complete(async_func(*args, **kwargs))
             except RuntimeError:
                 asyncio.run(async_func(*args, **kwargs))
-        except Exception as e:
+        except CATCHABLE_EXCEPTIONS as e:
             LoggingUtil.exception("firebase_system", f"Fire and Forget 실행 실패", e)
 
     def _get_firebase_reference(self, path: str = None):
@@ -488,7 +489,7 @@ class FirebaseSystem(DatabaseSystem):
                         callback(self.restore_value(data))
                     else:
                         callback(None)
-                except Exception as e:
+                except CATCHABLE_EXCEPTIONS as e:
                     LoggingUtil.exception("firebase_system", f"콜백 함수 실행 실패", e)
             
             # 리스너 등록 - listen()의 반환값(ListenerRegistration)을 저장

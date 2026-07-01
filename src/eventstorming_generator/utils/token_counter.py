@@ -1,6 +1,7 @@
 import os
 
 from langchain.chat_models import init_chat_model
+from eventstorming_generator.utils.catchable_exceptions import CATCHABLE_EXCEPTIONS
 
 
 def _build_init_kwargs(model_vendor: str) -> dict:
@@ -41,14 +42,14 @@ class TokenCounter:
         try:
             model = init_chat_model(f"{model_vendor}:{model_name}", **_build_init_kwargs(model_vendor))
             return model.get_num_tokens(text)
-        except Exception as e:
+        except CATCHABLE_EXCEPTIONS as e:
             try:
                 from ..utils.logging_util import LoggingUtil
                 LoggingUtil.warning(
                     "token_counter",
                     f"get_num_tokens 실패 — 글자 수 기반 추정치로 폴백합니다 (원인: {e!r})",
                 )
-            except Exception:
+            except CATCHABLE_EXCEPTIONS:
                 pass
             return max(1, len(text) // 3)
     

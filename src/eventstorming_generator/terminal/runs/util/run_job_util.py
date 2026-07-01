@@ -20,6 +20,6 @@ def run_create_job_id(command_args):
 
     is_valid = JobUtil.is_valid_job_id(job_id)
     if not is_valid:
-        raise Exception(f"유효하지 않은 Job ID: {job_id}")
+        raise RuntimeError(f"유효하지 않은 Job ID: {job_id}")
 
     return True

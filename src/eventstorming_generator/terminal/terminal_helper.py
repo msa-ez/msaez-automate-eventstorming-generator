@@ -6,6 +6,7 @@ from typing import Any
 from ..generators import XmlBaseGenerator
 from ..utils import JsonUtil, LoggingUtil
 from ..config import Config
+from eventstorming_generator.utils.catchable_exceptions import CATCHABLE_EXCEPTIONS
 
 class TerminalHelper:
     @staticmethod
@@ -52,7 +53,7 @@ class TerminalHelper:
  
             return generator_output["result"]
 
-        except Exception as e:
+        except CATCHABLE_EXCEPTIONS as e:
             LoggingUtil.exception(f"run_error_{generator.__class__.__name__}", f"실행 실패", e)
             TerminalHelper.save_dict_to_temp_file({
                 "error": str(e)

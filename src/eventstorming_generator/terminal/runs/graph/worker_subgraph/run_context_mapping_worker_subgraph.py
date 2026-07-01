@@ -3,6 +3,7 @@ from ...run_helper import RunHelper
 from .....utils import LoggingUtil
 from .....models import State, ContextMappingGenerationState
 from ....commons.graph import execute_context_mapping_worker_subgraph
+from eventstorming_generator.utils.catchable_exceptions import CATCHABLE_EXCEPTIONS
 
 def run_context_mapping_worker_subgraph(command_args):
     run_name = "run_context_mapping_worker_subgraph"
@@ -20,7 +21,7 @@ def run_context_mapping_worker_subgraph(command_args):
             "logs": state.outputs.logs,
         }, f"{run_name}_created_context_mappings")
 
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LoggingUtil.exception(run_name, f"실행 실패", e)
         TerminalHelper.save_dict_to_temp_file({
             "error": str(e)

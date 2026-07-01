@@ -2,6 +2,7 @@ from typing import Dict, List, Any
 
 from ...models import BoundedContextStructureModel, AggregateInfoModel, EnumerationInfoModel, ValueObjectInfoModel, ReferencedAggregateInfoModel, MergeDraftGeneratorOutput, MergedDraftInfo, MergedAggregateInfo
 from ..merge_draft_generator import MergeDraftGenerator
+from eventstorming_generator.utils.catchable_exceptions import CATCHABLE_EXCEPTIONS
 
 class MergeDraftGeneratorUtil:
     @staticmethod
@@ -106,7 +107,7 @@ class MergeDraftGeneratorUtil:
                         remaining_bc_names = []
                         break
                         
-                except Exception as e:
+                except CATCHABLE_EXCEPTIONS as e:
                     batch_retry_count += 1
                     
                     if batch_retry_count == 0:

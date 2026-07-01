@@ -20,6 +20,7 @@ from a2a.utils.errors import ServerError
 from eventstorming_generator.a2a_modules import create_agent_card, EventStormingAgentExecutor
 from eventstorming_generator.utils.smart_logger import SmartLogger
 from eventstorming_generator.config import Config
+from eventstorming_generator.utils.catchable_exceptions import CATCHABLE_EXCEPTIONS
 
 # 로깅 카테고리
 CATEGORY = "a2a_server"
@@ -50,7 +51,7 @@ class WebhookFriendlyRequestHandler(DefaultRequestHandler):
         while True:
             try:
                 task = await self.task_store.get(task_id)
-            except Exception as e:
+            except CATCHABLE_EXCEPTIONS as e:
                 SmartLogger.log(
                     "WARNING",
                     "Failed to fetch task while waiting terminal state",
@@ -73,7 +74,7 @@ class WebhookFriendlyRequestHandler(DefaultRequestHandler):
                     # in-memory store cleanup (best-effort)
                     if self._push_config_store:
                         await self._push_config_store.delete_info(task_id)
-                except Exception as e:
+                except CATCHABLE_EXCEPTIONS as e:
                     SmartLogger.log(
                         "ERROR",
                         "Terminal push notification failed",
@@ -140,7 +141,7 @@ class WebhookFriendlyRequestHandler(DefaultRequestHandler):
                         params={"task_id": task_id, "terminal_state": str(latest_state)},
                     )
 
-        except Exception as e:
+        except CATCHABLE_EXCEPTIONS as e:
             SmartLogger.log(
                 "ERROR",
                 "Agent execution failed in WebhookFriendlyRequestHandler",

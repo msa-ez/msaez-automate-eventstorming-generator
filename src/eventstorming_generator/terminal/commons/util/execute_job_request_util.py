@@ -4,6 +4,7 @@ from ....utils import LoggingUtil
 from ....utils.job_utils import JobRequestUtil
 from ..mocks import common_requirements
 from ...terminal_helper import TerminalHelper
+from eventstorming_generator.utils.catchable_exceptions import CATCHABLE_EXCEPTIONS
 
 async def execute_job_request_util(job_type:str="library_requirements"):
     DIR_PATH = f".temp/{time.time()}_execute_job_request_util"
@@ -16,7 +17,7 @@ async def execute_job_request_util(job_type:str="library_requirements"):
             TerminalHelper.save_dict_to_temp_file(event, f"event_{index}.json", DIR_PATH)
             index += 1
     
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LoggingUtil.exception(f"execute_job_request_util", f"실행 실패", e)
         TerminalHelper.save_dict_to_temp_file({
             "error": str(e)

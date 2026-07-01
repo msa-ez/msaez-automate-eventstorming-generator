@@ -9,6 +9,7 @@ from ..utils import JsonUtil, LogUtil
 from ..utils.job_utils import JobUtil
 from ..constants import RESUME_NODES
 from ..config import Config
+from eventstorming_generator.utils.catchable_exceptions import CATCHABLE_EXCEPTIONS
 
 
 def resume_from_create_element_names(state: State):
@@ -28,7 +29,7 @@ def resume_from_create_element_names(state: State):
         LogUtil.add_info_log(state, "[CREATE_ELEMENT_NAMES_SUBGRAPH] Starting element names generation process")
         return "prepare"
     
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, "[CREATE_ELEMENT_NAMES_SUBGRAPH] Failed during resume_from_create_element_names", e)
         state.subgraphs.createElementNamesByDraftsModel.is_failed = True
         return "complete"
@@ -81,7 +82,7 @@ def prepare_element_names_generation(state: State) -> State:
         
         LogUtil.add_info_log(state, f"[CREATE_ELEMENT_NAMES_SUBGRAPH] Preparation completed. Total bounded contexts to process: {len(pending_generations)}")
         
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, "[CREATE_ELEMENT_NAMES_SUBGRAPH] Failed during element names generation preparation", e)
         state.subgraphs.createElementNamesByDraftsModel.is_failed = True
     
@@ -111,7 +112,7 @@ def select_next_element_names(state: State) -> State:
             current_gen = state.subgraphs.createElementNamesByDraftsModel.pending_generations.pop(0)
             state.subgraphs.createElementNamesByDraftsModel.current_generation = current_gen
         
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, "[CREATE_ELEMENT_NAMES_SUBGRAPH] Failed to select next element names generation", e)
         state.subgraphs.createElementNamesByDraftsModel.is_failed = True
     
@@ -132,7 +133,7 @@ def preprocess_element_names_generation(state: State) -> State:
         current_gen.previousElementNames = state.subgraphs.createElementNamesByDraftsModel.extracted_element_names
         current_gen.is_preprocess_completed = True
         
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, f"[CREATE_ELEMENT_NAMES_SUBGRAPH] Preprocessing failed for bounded context: '{bc_name}'", e)
         state.subgraphs.createElementNamesByDraftsModel.is_failed = True
     
@@ -187,7 +188,7 @@ def generate_element_names(state: State) -> State:
             
         current_gen.extracted_element_names = converted_extracted_element_names
     
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, f"[CREATE_ELEMENT_NAMES_SUBGRAPH] Failed to generate element names for bounded context: '{bc_name}'", e)
         if state.subgraphs.createElementNamesByDraftsModel.current_generation:
             state.subgraphs.createElementNamesByDraftsModel.current_generation.retry_count += 1
@@ -213,7 +214,7 @@ def postprocess_element_names_generation(state: State) -> State:
         
         LogUtil.add_info_log(state, f"[CREATE_ELEMENT_NAMES_SUBGRAPH] Postprocessing completed successfully for bounded context: '{bc_name}'. Applied {len(current_gen.extracted_element_names)} element names to ES value")
     
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, f"[CREATE_ELEMENT_NAMES_SUBGRAPH] Postprocessing failed for bounded context: '{bc_name}'", e)
         if current_gen:
             current_gen.retry_count += 1
@@ -256,7 +257,7 @@ def validate_element_names_generation(state: State) -> State:
         else:
             LogUtil.add_info_log(state, f"[CREATE_ELEMENT_NAMES_SUBGRAPH] Retrying element names generation for bounded context: '{bc_name}' (attempt {current_gen.retry_count + 1}/{state.subgraphs.createElementNamesByDraftsModel.max_retry_count})")
         
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, f"[CREATE_ELEMENT_NAMES_SUBGRAPH] Validation failed for bounded context: '{bc_name}'", e)
         state.subgraphs.createElementNamesByDraftsModel.is_failed = True
     
@@ -295,7 +296,7 @@ def complete_processing(state: State) -> State:
         model.total_seconds = model.end_time - model.start_time
         model.is_processing = False
     
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, "[CREATE_ELEMENT_NAMES_SUBGRAPH] Failed during element names generation process completion", e)
         model.is_failed = True
 
@@ -340,7 +341,7 @@ def decide_next_step(state: State) -> str:
         # 생성된 Element Names이 있으면 후처리 단계로 이동
         return "postprocess"
     
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, "[CREATE_ELEMENT_NAMES_SUBGRAPH] Failed during decide_next_step", e)
         state.subgraphs.createElementNamesByDraftsModel.is_failed = True
         return "complete"

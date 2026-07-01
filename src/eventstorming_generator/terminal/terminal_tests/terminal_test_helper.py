@@ -14,7 +14,7 @@ class TerminalTestHelper:
         
         if len(error_logs) > 0:
             TerminalHelper.save_dict_to_temp_file(error_logs, f"error_logs_{after_stop_node}")
-            raise Exception(f"에러 로그가 있습니다: {", ".join([log.message for log in error_logs])}")
+            raise RuntimeError(f"에러 로그가 있습니다: {", ".join([log.message for log in error_logs])}")
 
         if after_stop_node == RG.CREATE_BOUNDED_CONTEXTS:
             assert state.subgraphs.createBoundedContextByFunctionsModel.is_failed == False, "실패한 바운디드 컨텍스트가 있습니다"

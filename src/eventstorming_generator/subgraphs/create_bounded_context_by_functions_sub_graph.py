@@ -13,6 +13,7 @@ from ..constants import RESUME_NODES
 from .worker_subgraphs import create_bounded_context_worker_subgraph, bounded_context_worker_id_context
 from ..generators import MergeCreatedBoundedContextGeneratorUtil
 from ..config import Config
+from eventstorming_generator.utils.catchable_exceptions import CATCHABLE_EXCEPTIONS
 
 
 def resume_from_create_bounded_contexts(state: State):
@@ -32,7 +33,7 @@ def resume_from_create_bounded_contexts(state: State):
         LogUtil.add_info_log(state, "[BOUNDED_CONTEXT_SUBGRAPH] Starting bounded context generation process (parallel mode)")
         return "prepare"
 
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, "[BOUNDED_CONTEXT_SUBGRAPH] Failed during resume_from_create_bounded_contexts", e)
         state.subgraphs.createBoundedContextByFunctionsModel.is_failed = True
         return "complete"
@@ -67,7 +68,7 @@ def prepare_bounded_context_generation(state: State) -> State:
         model.pending_generations = pending_generations
         LogUtil.add_info_log(state, f"[BOUNDED_CONTEXT_SUBGRAPH] Preparation completed. Total bounded contexts to process: {len(pending_generations)}")
         
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, "[BOUNDED_CONTEXT_SUBGRAPH] Failed during bounded context generation preparation", e)
         state.subgraphs.createBoundedContextByFunctionsModel.is_failed = True
     
@@ -105,7 +106,7 @@ def select_batch_bounded_contexts(state: State) -> State:
                     current_batch.append(model.pending_generations.pop(0))
             model.current_batch = current_batch
         
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, "[BOUNDED_CONTEXT_SUBGRAPH] Failed to select bounded context batch", e)
         state.subgraphs.createBoundedContextByFunctionsModel.is_failed = True
     
@@ -156,7 +157,7 @@ def execute_parallel_workers(state: State) -> State:
                     bounded_context_generation_state.is_failed = True
                     return bounded_context_generation_state
                     
-            except Exception as e:
+            except CATCHABLE_EXCEPTIONS as e:
                 bounded_context_generation_state = model.worker_generations.get(worker_id)
                 worker_index = bounded_context_generation_state.worker_index
                 if bounded_context_generation_state:
@@ -184,7 +185,7 @@ def execute_parallel_workers(state: State) -> State:
                     result_bounded_context = future.result()
                     completed_results.append(result_bounded_context)
                     
-                except Exception as e:
+                except CATCHABLE_EXCEPTIONS as e:
                     worker_index = original_bounded_context.worker_index
                     LogUtil.add_exception_object_log(state, f"[BOUNDED_CONTEXT_SUBGRAPH] Failed to get worker result for bounded context at index {worker_index}", e)
                     original_bounded_context.is_failed = True
@@ -200,7 +201,7 @@ def execute_parallel_workers(state: State) -> State:
         
         LogUtil.add_info_log(state, f"[BOUNDED_CONTEXT_SUBGRAPH] Parallel execution completed. Successful: {successful_count}, Failed: {failed_count}, Total: {len(completed_results)}")
         
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, "[BOUNDED_CONTEXT_SUBGRAPH] Failed during parallel worker execution", e)
         model.is_failed = True
     
@@ -244,7 +245,7 @@ def collect_and_apply_results(state: State) -> State:
         
         LogUtil.add_info_log(state, f"[BOUNDED_CONTEXT_SUBGRAPH] Result collection completed. Batch - Successful: {successful_count}, Failed: {failed_count}. Total completed: {total_completed}")
         
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, "[BOUNDED_CONTEXT_SUBGRAPH] Failed during result collection and application", e)
         model.is_failed = True
     
@@ -266,7 +267,7 @@ def merge_bounded_contexts(state: State) -> State:
             return state
 
         if not model.accumulated_bounded_contexts:
-            raise Exception("No accumulated bounded contexts found")
+            raise RuntimeError("No accumulated bounded contexts found")
 
         model.accumulated_bounded_contexts = sorted(
             model.accumulated_bounded_contexts, key=lambda x: x.name
@@ -290,7 +291,7 @@ def merge_bounded_contexts(state: State) -> State:
 
         LogUtil.add_info_log(state, f"[BOUNDED_CONTEXT_SUBGRAPH] Merge completed. Total merged bounded contexts: {len(model.merged_bounded_contexts)}")
 
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, "[BOUNDED_CONTEXT_SUBGRAPH] Failed during merge operation", e)
         model.is_failed = True
 
@@ -333,7 +334,7 @@ def complete_processing(state: State) -> State:
         model.total_seconds = model.end_time - model.start_time
         model.is_processing = False
         
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, "[BOUNDED_CONTEXT_SUBGRAPH] Failed during process completion", e)
         state.subgraphs.createBoundedContextByFunctionsModel.is_failed = True
     
@@ -373,7 +374,7 @@ def decide_next_step(state: State) -> str:
         # 아무것도 없으면 완료
         return "complete"
     
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, "[BOUNDED_CONTEXT_SUBGRAPH] Failed during decide_next_step", e)
         state.subgraphs.createBoundedContextByFunctionsModel.is_failed = True
         return "complete"

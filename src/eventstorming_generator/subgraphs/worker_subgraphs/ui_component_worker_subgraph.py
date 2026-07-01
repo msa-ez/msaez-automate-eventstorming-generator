@@ -15,6 +15,7 @@ from ...models import CreateUiComponentsGenerationState, ActionModel, State, Cre
 from ...utils import JsonUtil, LogUtil
 from ...generators import CreateCommandWireFrame, CreateReadModelWireFrame
 from ...config import Config
+from eventstorming_generator.utils.catchable_exceptions import CATCHABLE_EXCEPTIONS
 
 # 스레드로부터 안전한 컨텍스트 변수 생성
 ui_component_worker_id_context = ContextVar('worker_id', default=None)
@@ -115,7 +116,7 @@ def worker_preprocess_ui_component(state: State) -> State:
             current_gen.is_failed = True
             return state
     
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, f"[UI_WORKER] Preprocessing failed for UI component '{ui_name}'", e)
         current_gen.is_failed = True
     
@@ -190,7 +191,7 @@ def worker_generate_ui_component(state: State) -> State:
         
         current_gen.ui_replace_actions = [ui_update_action]
     
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, f"[UI_WORKER] Failed to generate wireframe for UI component '{ui_name}'", e)
         if current_gen:
             current_gen.retry_count += 1
@@ -219,7 +220,7 @@ def worker_postprocess_ui_component(state: State) -> State:
         # 워커에서는 ES 업데이트를 하지 않고 완료 표시만 함
         current_gen.generation_complete = True
     
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, f"[UI_WORKER] Postprocessing failed for UI component '{ui_name}'", e)
         if current_gen:
             current_gen.retry_count += 1
@@ -245,7 +246,7 @@ def worker_validate_ui_component(state: State) -> State:
             LogUtil.add_error_log(state, f"[UI_WORKER] Maximum retry count exceeded for UI component '{ui_name}' (retries: {current_gen.retry_count})")
             current_gen.is_failed = True
         
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, f"[UI_WORKER] Validation failed for UI component '{ui_name}'", e)
         current_gen.is_failed = True
 
@@ -281,7 +282,7 @@ def worker_decide_next_step(state: State) -> str:
         # 생성된 UI Components가 있으면 후처리 단계로 이동
         return "postprocess"
     
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, "[UI_WORKER] Failed during worker_decide_next_step", e)
         return "complete"
 
@@ -363,7 +364,7 @@ def create_ui_component_worker_subgraph():
         try:
             result = State(**compiled_worker.invoke(state, {"recursion_limit": 2147483647}))
             return result
-        except Exception as e:
+        except CATCHABLE_EXCEPTIONS as e:
             LogUtil.add_exception_object_log(state, "[UI_WORKER] Worker execution failed", e)
             current_gen = get_current_generation(state)
             if current_gen:

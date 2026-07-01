@@ -4,6 +4,7 @@ from ....terminal_helper import TerminalHelper
 from ...run_helper import RunHelper
 from .....utils import LoggingUtil
 from .....models import State
+from eventstorming_generator.utils.catchable_exceptions import CATCHABLE_EXCEPTIONS
 
 def run_es_value_summary_generator_sub_graph(command_args):
     run_name = "run_es_value_summary_generator_sub_graph"
@@ -16,7 +17,7 @@ def run_es_value_summary_generator_sub_graph(command_args):
         RunHelper.check_error_logs_from_state(result, run_name)
         TerminalHelper.save_dict_to_temp_file(result.subgraphs.esValueSummaryGeneratorModel, run_name)
         
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LoggingUtil.exception(run_name, f"실행 실패", e)
         TerminalHelper.save_dict_to_temp_file({
             "error": str(e)

@@ -2,6 +2,7 @@ from typing import List, Set
 
 from ...models import BoundedContextInfoModel, MergeCreatedBoundedContextGeneratorOutput
 from ...generators import MergeCreatedBoundedContextGenerator
+from eventstorming_generator.utils.catchable_exceptions import CATCHABLE_EXCEPTIONS
 
 class MergeCreatedBoundedContextGeneratorUtil:
     @staticmethod
@@ -73,7 +74,7 @@ class MergeCreatedBoundedContextGeneratorUtil:
                 else:
                     raise ValueError("Generated bounded contexts failed final validation")
                     
-            except Exception as e:
+            except CATCHABLE_EXCEPTIONS as e:
                 if retry_count == max_retry_count - 1:
                     # 최종 재시도 실패 시, 원본 데이터에서 중복만 제거하여 반환
                     return MergeCreatedBoundedContextGeneratorUtil._deduplicate_bounded_contexts(

@@ -13,6 +13,7 @@ from ...models import State, InputsModel, IdsModel
 from ...constants import REQUEST_TYPES
 from ...systems.database.database_factory import DatabaseFactory
 from ...utils.smart_logger import SmartLogger
+from eventstorming_generator.utils.catchable_exceptions import CATCHABLE_EXCEPTIONS
 
 
 # 로깅 카테고리
@@ -129,7 +130,7 @@ class JobRequestUtil:
                         }
                         break
                     
-        except Exception as e:
+        except CATCHABLE_EXCEPTIONS as e:
             SmartLogger.log("ERROR", "A2A 스트리밍 오류", category=CATEGORY, params={
                 "job_id": job_id,
                 "error_type": type(e).__name__,
@@ -150,7 +151,7 @@ class JobRequestUtil:
             try:
                 loop = asyncio.get_event_loop()
                 await loop.run_in_executor(None, watch_status["clear_watch_paths"])
-            except Exception as e:
+            except CATCHABLE_EXCEPTIONS as e:
                 SmartLogger.log("ERROR", "Watch 해제 오류", category=CATEGORY, params={
                     "session_id": session_id,
                     "error_type": type(e).__name__,
@@ -255,7 +256,7 @@ class JobRequestUtil:
                     "type": "logs",
                     "data": data
                 }), main_loop)
-            except Exception as e:
+            except CATCHABLE_EXCEPTIONS as e:
                 SmartLogger.log("ERROR", "Queue 푸시 실패", category=CATEGORY, params={
                     "error_type": type(e).__name__,
                     "error_message": str(e),
@@ -283,7 +284,7 @@ class JobRequestUtil:
             for path in watch_paths:
                 try:
                     db_system.unwatch_data(path)
-                except Exception as e:
+                except CATCHABLE_EXCEPTIONS as e:
                     SmartLogger.log("ERROR", "Watch 해제 실패", category=CATEGORY, params={
                         "path": path,
                         "error_type": type(e).__name__,

@@ -16,6 +16,7 @@ from ...utils import JsonUtil, ESValueSummarizeWithFilter, EsAliasTransManager, 
 from ...generators import CreateCommandActionsByFunction
 from ...constants import ELEMENT_TYPES
 from ...config import Config
+from eventstorming_generator.utils.catchable_exceptions import CATCHABLE_EXCEPTIONS
 
 # 스레드로부터 안전한 컨텍스트 변수 생성
 command_actions_worker_id_context = ContextVar('worker_id', default=None)
@@ -87,7 +88,7 @@ def worker_preprocess_command_actions(state: State) -> State:
             filtered_summarized_es_value["boundedContexts"].append(filtered_bounded_context_info)
         current_gen.summarized_es_value = filtered_summarized_es_value
         
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, f"[COMMAND_ACTIONS_WORKER] Preprocessing failed for aggregate '{aggregate_name}' in context '{bc_name}'", e)
         current_gen.is_failed = True
     
@@ -150,7 +151,7 @@ def worker_generate_command_actions(state: State) -> State:
         
         current_gen.created_actions = actionModels
         
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, f"[COMMAND_ACTIONS_WORKER] Failed to generate command actions for aggregate '{aggregate_name}' in context '{bc_name}'", e)
         current_gen.retry_count += 1
     
@@ -184,7 +185,7 @@ def worker_postprocess_command_actions(state: State) -> State:
                 current_gen.requirement_index_mapping, state, "[COMMAND_ACTIONS_WORKER]",
                 full_requirements_text=state.inputs.requirements
             )
-        except Exception as e:
+        except CATCHABLE_EXCEPTIONS as e:
             LogUtil.add_exception_object_log(state, f"[COMMAND_ACTIONS_WORKER] Failed to convert source references for aggregate '{aggregate_name}'", e)
             # 후처리 실패시에도 계속 진행하되, 에러 로그를 남김
         
@@ -206,7 +207,7 @@ def worker_postprocess_command_actions(state: State) -> State:
         # 워커에서는 ES 업데이트를 하지 않고 완료 표시만 함
         current_gen.generation_complete = True
         
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, f"[COMMAND_ACTIONS_WORKER] Postprocessing failed for aggregate '{aggregate_name}' in context '{bc_name}'", e)
         current_gen.retry_count += 1
         current_gen.created_actions = []
@@ -232,7 +233,7 @@ def worker_validate_command_actions(state: State) -> State:
             LogUtil.add_error_log(state, f"[COMMAND_ACTIONS_WORKER] Maximum retry count exceeded for aggregate '{aggregate_name}' (retries: {current_gen.retry_count})")
             current_gen.is_failed = True
         
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, f"[COMMAND_ACTIONS_WORKER] Validation failed for aggregate '{aggregate_name}' in context '{bc_name}'", e)
         current_gen.is_failed = True
 
@@ -268,7 +269,7 @@ def worker_decide_next_step(state: State) -> str:
         # 생성된 액션이 있으면 후처리 단계로 이동
         return "postprocess"
     
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, "[COMMAND_ACTIONS_WORKER] Failed during worker_decide_next_step", e)
         return "complete"
 
@@ -350,7 +351,7 @@ def create_command_actions_worker_subgraph():
         try:
             result = State(**compiled_worker.invoke(state, {"recursion_limit": 2147483647}))
             return result
-        except Exception as e:
+        except CATCHABLE_EXCEPTIONS as e:
             LogUtil.add_exception_object_log(state, "[COMMAND_ACTIONS_WORKER] Worker execution failed", e)
             current_gen = get_current_generation(state)
             if current_gen:

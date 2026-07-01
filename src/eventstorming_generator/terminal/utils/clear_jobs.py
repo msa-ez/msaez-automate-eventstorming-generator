@@ -2,6 +2,7 @@ from ...systems import DatabaseFactory
 from ...utils import LoggingUtil
 from ..terminal_helper import TerminalHelper
 from ...config import Config
+from eventstorming_generator.utils.catchable_exceptions import CATCHABLE_EXCEPTIONS
 
 def clear_jobs(command_args):
     util_name = "clear_jobs"
@@ -24,7 +25,7 @@ def clear_jobs(command_args):
         db_system.delete_data(f"requestedJobs/{namespace}")
         LoggingUtil.info(util_name, f"jobs, jobStates, requestedJobs 폴더를 모두 삭제 완료: {namespace}")
 
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LoggingUtil.exception(util_name, f"실행 실패", e)
         TerminalHelper.save_dict_to_temp_file({
             "error": str(e)

@@ -7,6 +7,7 @@ from ..models import State, ESValueSummaryGeneratorOutput
 from ..utils import EsAliasTransManager
 from ..generators.es_value_summary_generator import ESValueSummaryGenerator
 from ..config import Config
+from eventstorming_generator.utils.catchable_exceptions import CATCHABLE_EXCEPTIONS
 
 def prepare_es_value_summary_generation(state: State) -> State:
     """
@@ -26,7 +27,7 @@ def prepare_es_value_summary_generation(state: State) -> State:
         state.subgraphs.esValueSummaryGeneratorModel.is_failed = False
         state.subgraphs.esValueSummaryGeneratorModel.retry_count = 0
         
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, "[ES_SUMMARY_SUBGRAPH] Failed during ES value summary generation preparation", e)
         state.subgraphs.esValueSummaryGeneratorModel.is_failed = True
     
@@ -82,7 +83,7 @@ def preprocess_es_value_summary_generation(state: State) -> State:
         state.subgraphs.esValueSummaryGeneratorModel.summarized_es_value = summarized_es_value
         state.subgraphs.esValueSummaryGeneratorModel.element_ids = element_ids
         
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, "[ES_SUMMARY_SUBGRAPH] Failed during ES value summary preprocessing", e)
         state.subgraphs.esValueSummaryGeneratorModel.is_failed = True
     
@@ -119,7 +120,7 @@ def generate_es_value_summary(state: State) -> State:
         generator_result: ESValueSummaryGeneratorOutput = generator_output["result"]
         current_gen.sorted_element_ids = generator_result.sortedElementIds
     
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, "[ES_SUMMARY_SUBGRAPH] Failed during ES value summary generation", e)
         current_gen.retry_count += 1
     
@@ -153,7 +154,7 @@ def postprocess_es_value_summary_generation(state: State) -> State:
         )
         current_gen.processed_summarized_es_value = summarized_es_value  
     
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, "[ES_SUMMARY_SUBGRAPH] Failed during ES value summary postprocessing", e)
         current_gen.processed_summarized_es_value = {}
         current_gen.sorted_element_ids = []
@@ -176,7 +177,7 @@ def validate_es_value_summary_generation(state: State) -> State:
             current_gen.retry_count += 1
             LogUtil.add_info_log(state, f"[ES_SUMMARY_SUBGRAPH] Validation failed - no processed summary available. Retry count: {current_gen.retry_count}/{current_gen.max_retry_count}")
     
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, "[ES_SUMMARY_SUBGRAPH] Failed during ES value summary generation validation", e)
         current_gen.processed_summarized_es_value = {}
         current_gen.sorted_element_ids = []
@@ -211,7 +212,7 @@ def complete_processing(state: State) -> State:
             subgraph_model.element_ids = []
             subgraph_model.sorted_element_ids = []
 
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, "[ES_SUMMARY_SUBGRAPH] Failed during ES value summary generation completion", e)
         state.subgraphs.esValueSummaryGeneratorModel.is_failed = True
     
@@ -252,7 +253,7 @@ def decide_next_step(state: State) -> str:
         # 검증 단계로 이동
         return "validate"
     
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, "[ES_SUMMARY_SUBGRAPH] Failed during decide_next_step", e)
         return "complete"
 

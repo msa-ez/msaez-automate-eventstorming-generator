@@ -39,6 +39,7 @@ from ..utils.job_utils import JobRequestUtil, A2ASessionManager
 from ..utils.smart_logger import SmartLogger
 from ..config import Config
 from ..systems.database.database_factory import DatabaseFactory
+from eventstorming_generator.utils.catchable_exceptions import CATCHABLE_EXCEPTIONS
 
 
 # 로깅 카테고리
@@ -232,7 +233,7 @@ class EventStormingAgentExecutor(AgentExecutor):
                 task_id, context_id, job_id, link, event_queue, start_time
             )
             
-        except Exception as e:
+        except CATCHABLE_EXCEPTIONS as e:
             SmartLogger.log("ERROR", "Webhook 실행 오류", category=CATEGORY, params={
                 "task_id": task_id,
                 "error_type": type(e).__name__,
@@ -330,7 +331,7 @@ class EventStormingAgentExecutor(AgentExecutor):
                 "mode": "IMMEDIATE_COMPLETE",
             })
             
-        except Exception as e:
+        except CATCHABLE_EXCEPTIONS as e:
             SmartLogger.log("ERROR", "즉시 완료 처리 오류", category=CATEGORY, params={
                 "task_id": task_id,
                 "error_type": type(e).__name__,
@@ -458,7 +459,7 @@ class EventStormingAgentExecutor(AgentExecutor):
             })
             raise
             
-        except Exception as e:
+        except CATCHABLE_EXCEPTIONS as e:
             SmartLogger.log("ERROR", "모니터링 오류", category=CATEGORY, params={
                 "task_id": task_id,
                 "job_id": job_id,
@@ -474,9 +475,9 @@ class EventStormingAgentExecutor(AgentExecutor):
                 for path in watch_paths:
                     try:
                         db_system.unwatch_data(path)
-                    except Exception:
+                    except CATCHABLE_EXCEPTIONS:
                         pass
-            except Exception:
+            except CATCHABLE_EXCEPTIONS:
                 pass
             
             # 세션 해제

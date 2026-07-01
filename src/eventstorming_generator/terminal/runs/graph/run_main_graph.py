@@ -6,6 +6,7 @@ from ....utils import LoggingUtil, ListUtil
 from ....models import State
 from ....config import Config
 from ...commons.graph import execute_main_graph_sequentially
+from eventstorming_generator.utils.catchable_exceptions import CATCHABLE_EXCEPTIONS
 
 def run_main_graph(command_args):
     run_name = "run_main_graph"
@@ -43,7 +44,7 @@ def run_main_graph(command_args):
             "totalSeconds": total_seconds
         }, f"{run_name}_{save_index}_total_seconds", target_directory)
 
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LoggingUtil.exception(run_name, f"실행 실패", e)
         TerminalHelper.save_dict_to_temp_file({
             "error": str(e)

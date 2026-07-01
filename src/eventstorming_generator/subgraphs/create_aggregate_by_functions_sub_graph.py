@@ -12,6 +12,7 @@ from ..utils.job_utils import JobUtil
 from ..constants import RESUME_NODES
 from .worker_subgraphs import create_aggregate_worker_subgraph, aggregate_worker_id_context
 from ..config import Config
+from eventstorming_generator.utils.catchable_exceptions import CATCHABLE_EXCEPTIONS
 
 
 def resume_from_create_aggregates(state: State):
@@ -31,7 +32,7 @@ def resume_from_create_aggregates(state: State):
         LogUtil.add_info_log(state, "[AGGREGATE_SUBGRAPH] Starting aggregate generation process (parallel mode)")
         return "prepare"
 
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, "[AGGREGATE_SUBGRAPH] Failed during resume_from_create_aggregates", e)
         state.subgraphs.createAggregateByFunctionsModel.is_failed = True
         return "complete"
@@ -82,7 +83,7 @@ def prepare_aggregate_generation(state: State) -> State:
         state.subgraphs.createAggregateByFunctionsModel.pending_generations = pending_generations
         LogUtil.add_info_log(state, f"[AGGREGATE_SUBGRAPH] Preparation completed. Total aggregates to process: {len(pending_generations)}")
         
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, "[AGGREGATE_SUBGRAPH] Failed during aggregate generation preparation", e)
         state.subgraphs.createAggregateByFunctionsModel.is_failed = True
     
@@ -120,7 +121,7 @@ def select_batch_aggregates(state: State) -> State:
                     current_batch.append(model.pending_generations.pop(0))
             model.current_batch = current_batch
         
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, "[AGGREGATE_SUBGRAPH] Failed to select aggregate batch", e)
         state.subgraphs.createAggregateByFunctionsModel.is_failed = True
     
@@ -171,7 +172,7 @@ def execute_parallel_workers(state: State) -> State:
                     aggregate_generation_state.is_failed = True
                     return aggregate_generation_state
                     
-            except Exception as e:
+            except CATCHABLE_EXCEPTIONS as e:
                 aggregate_generation_state = model.worker_generations.get(worker_id)
                 if aggregate_generation_state:
                     aggregate_name = aggregate_generation_state.target_aggregate_structure.aggregateName
@@ -199,7 +200,7 @@ def execute_parallel_workers(state: State) -> State:
                     result_aggregate = future.result()
                     completed_results.append(result_aggregate)
                     
-                except Exception as e:
+                except CATCHABLE_EXCEPTIONS as e:
                     aggregate_name = original_aggregate.target_aggregate_structure.aggregateName
                     LogUtil.add_exception_object_log(state, f"[AGGREGATE_SUBGRAPH] Failed to get worker result for aggregate '{aggregate_name}'", e)
                     original_aggregate.is_failed = True
@@ -215,7 +216,7 @@ def execute_parallel_workers(state: State) -> State:
         
         LogUtil.add_info_log(state, f"[AGGREGATE_SUBGRAPH] Parallel execution completed. Successful: {successful_count}, Failed: {failed_count}, Total: {len(completed_results)}")
         
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, "[AGGREGATE_SUBGRAPH] Failed during parallel worker execution", e)
         model.is_failed = True
     
@@ -277,7 +278,7 @@ def collect_and_apply_results(state: State) -> State:
         
         LogUtil.add_info_log(state, f"[AGGREGATE_SUBGRAPH] Result collection completed. Batch - Successful: {successful_count}, Failed: {failed_count}. Total completed: {total_completed}")
         
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, "[AGGREGATE_SUBGRAPH] Failed during result collection and application", e)
         model.is_failed = True
     
@@ -316,7 +317,7 @@ def complete_processing(state: State) -> State:
         model.total_seconds = model.end_time - model.start_time
         model.is_processing = False
         
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, "[AGGREGATE_SUBGRAPH] Failed during process completion", e)
         model.is_failed = True
     
@@ -351,7 +352,7 @@ def decide_next_step(state: State) -> str:
         # 아무것도 없으면 완료
         return "complete"
     
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, "[AGGREGATE_SUBGRAPH] Failed during decide_next_step", e)
         state.subgraphs.createAggregateByFunctionsModel.is_failed = True
         return "complete"

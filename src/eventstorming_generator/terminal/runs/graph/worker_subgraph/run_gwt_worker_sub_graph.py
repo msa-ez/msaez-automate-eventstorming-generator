@@ -4,6 +4,7 @@ from ....terminal_helper import TerminalHelper
 from ...run_helper import RunHelper
 from .....utils import LoggingUtil
 from .....models import State
+from eventstorming_generator.utils.catchable_exceptions import CATCHABLE_EXCEPTIONS
 
 def run_gwt_worker_sub_graph(command_args):
     run_name = "run_gwt_worker_sub_graph"
@@ -25,7 +26,7 @@ def run_gwt_worker_sub_graph(command_args):
             "logs": result.outputs.logs,
         }, f"{run_name}_completed_value")
 
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LoggingUtil.exception(run_name, f"실행 실패", e)
         TerminalHelper.save_dict_to_temp_file({
             "error": str(e)

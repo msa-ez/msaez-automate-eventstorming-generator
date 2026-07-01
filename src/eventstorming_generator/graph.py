@@ -5,6 +5,7 @@ from eventstorming_generator.utils import JsonUtil, EsActionsUtil, LogUtil, self
 from eventstorming_generator.utils.job_utils import JobUtil
 from eventstorming_generator.subgraphs import create_bounded_context_by_functions_subgraph, create_context_mapping_subgraph, create_draft_by_function_subgraph, create_aggregate_by_functions_subgraph, create_aggregate_class_id_by_drafts_subgraph, create_element_names_by_draft_sub_graph, create_command_actions_by_function_subgraph, create_policy_actions_by_function_subgraph, create_gwt_generator_by_function_subgraph, create_ui_components_subgraph
 from eventstorming_generator.constants import RG, RESUME_NODES, REQUEST_TYPES
+from eventstorming_generator.utils.catchable_exceptions import CATCHABLE_EXCEPTIONS
 
 
 def resume_from_root_graph(state: State):
@@ -98,7 +99,7 @@ def create_bounded_contexts_to_es_value(state: State):
                 state.inputs.ids.projectId
             )
 
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, f"[ROOT_GRAPH] Failed to create bounded contexts", e)
         state.outputs.lastCompletedRootGraphNode = RG.CREATE_AGGREGATES
         state.outputs.lastCompletedSubGraphNode = RESUME_NODES.CREATE_AGGREGATES.COMPLETE

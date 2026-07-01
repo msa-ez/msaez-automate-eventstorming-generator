@@ -5,6 +5,7 @@ import os
 import threading
 from datetime import datetime
 from typing import Optional
+from eventstorming_generator.utils.catchable_exceptions import CATCHABLE_EXCEPTIONS
 
 class SmartLogger:
     LEVEL_PRIORITY = {
@@ -137,7 +138,7 @@ class SmartLogger:
                 with open(filepath, 'w', encoding='utf-8') as f:
                     json.dump(payload, f, ensure_ascii=False, indent=2)
             return filename
-        except Exception as e:
+        except CATCHABLE_EXCEPTIONS as e:
             return f"Error saving detail: {str(e)}"
 
     def _should_log(self, level):

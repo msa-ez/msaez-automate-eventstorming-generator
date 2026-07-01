@@ -16,6 +16,7 @@ from ...utils import JsonUtil, LogUtil, CaseConvertUtil, EsAliasTransManager, Es
 from ...generators import CreateAggregateActionsByFunction, AssignFieldsToActionsGenerator
 from ...constants import ELEMENT_TYPES
 from ...config import Config
+from eventstorming_generator.utils.catchable_exceptions import CATCHABLE_EXCEPTIONS
 
 # 스레드로부터 안전한 컨텍스트 변수 생성
 aggregate_worker_id_context = ContextVar('worker_id', default=None)
@@ -59,7 +60,7 @@ def worker_preprocess_aggregate(state: State) -> State:
         )
         current_gen.is_preprocess_completed = True
         
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         aggregate_name = current_gen.target_aggregate_structure.aggregateName
         LogUtil.add_exception_object_log(state, f"[AGGREGATE_WORKER] Preprocessing failed for aggregate '{aggregate_name}'", e)
         current_gen.is_failed = True
@@ -111,7 +112,7 @@ def worker_generate_aggregate(state: State) -> State:
 
         current_gen.created_actions = actionModels
     
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         aggregate_name = current_gen.target_aggregate_structure.aggregateName
         LogUtil.add_exception_object_log(state, f"[AGGREGATE_WORKER] Failed to generate aggregate '{aggregate_name}'", e)
         current_gen.retry_count += 1
@@ -189,7 +190,7 @@ def worker_postprocess_aggregate(state: State) -> State:
                 state, "[AGGREGATE_WORKER]",
                 full_requirements_text=state.inputs.requirements
             )
-        except Exception as e:
+        except CATCHABLE_EXCEPTIONS as e:
             LogUtil.add_exception_object_log(state, f"[AGGREGATE_WORKER] Failed to convert source references for '{aggregate_name}'", e)
             # 후처리 실패시에도 계속 진행하되, 에러 로그를 남김
         
@@ -197,7 +198,7 @@ def worker_postprocess_aggregate(state: State) -> State:
         current_gen.created_actions = [ActionModel(**action) for action in actions]
         current_gen.generation_complete = True
         
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, f"[AGGREGATE_WORKER] Postprocessing failed for aggregate '{aggregate_name}'", e)
         current_gen.retry_count += 1
         current_gen.created_actions = []
@@ -329,7 +330,7 @@ def worker_assign_missing_fields(state: State) -> State:
             current_gen.missing_attributes = list(remaining_fields)
             current_gen.retry_count += 1
     
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, f"[AGGREGATE_WORKER] Failed during field assignment for '{aggregate_name}'", e)
         current_gen.retry_count += 1
     
@@ -354,7 +355,7 @@ def worker_validate_aggregate(state: State) -> State:
             LogUtil.add_error_log(state, f"[AGGREGATE_WORKER] Maximum retry count exceeded for aggregate '{aggregate_name}' (retries: {current_gen.retry_count})")
             current_gen.is_failed = True
 
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, f"[AGGREGATE_WORKER] Validation failed for aggregate '{aggregate_name}'", e)
         current_gen.is_failed = True
 
@@ -394,7 +395,7 @@ def worker_decide_next_step(state: State) -> str:
         # 생성된 액션이 있으면 후처리 단계로 이동
         return "postprocess"
     
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, "[AGGREGATE_WORKER] Failed during worker_decide_next_step", e)
         return "complete"
 
@@ -489,7 +490,7 @@ def create_aggregate_worker_subgraph():
         try:
             result = State(**compiled_worker.invoke(state, {"recursion_limit": 2147483647}))
             return result
-        except Exception as e:
+        except CATCHABLE_EXCEPTIONS as e:
             LogUtil.add_exception_object_log(state, "[AGGREGATE_WORKER] Worker execution failed", e)
             current_gen = get_current_generation(state)
             if current_gen:

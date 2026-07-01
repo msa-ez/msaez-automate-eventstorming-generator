@@ -5,6 +5,7 @@ from .....models import State
 from .....config import Config
 from ....commons.graph import execute_create_policy_actions_by_function_sub_graph
 from .....constants import RG
+from eventstorming_generator.utils.catchable_exceptions import CATCHABLE_EXCEPTIONS
 
 def run_create_policy_actions_by_function_sub_graph(command_args):
     run_name = "run_create_policy_actions_by_function_sub_graph"
@@ -18,7 +19,7 @@ def run_create_policy_actions_by_function_sub_graph(command_args):
         state: State = execute_create_policy_actions_by_function_sub_graph()
         RunHelper.save_state_by_after_stop_node(after_stop_node, state, run_name)
         
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LoggingUtil.exception(run_name, f"실행 실패", e)
         TerminalHelper.save_dict_to_temp_file({
             "error": str(e)

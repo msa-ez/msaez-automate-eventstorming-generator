@@ -12,6 +12,7 @@ from ..utils.job_utils import JobUtil
 from ..constants import RESUME_NODES
 from .worker_subgraphs import create_context_mapping_worker_subgraph, context_mapping_worker_id_context
 from ..config import Config
+from eventstorming_generator.utils.catchable_exceptions import CATCHABLE_EXCEPTIONS
 
 
 def resume_from_create_context_mapping(state: State):
@@ -31,7 +32,7 @@ def resume_from_create_context_mapping(state: State):
         LogUtil.add_info_log(state, "[CONTEXT_MAPPING_SUBGRAPH] Starting context mapping generation process (parallel mode)")
         return "prepare"
 
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, "[CONTEXT_MAPPING_SUBGRAPH] Failed during resume_from_create_context_mapping", e)
         state.subgraphs.createContextMappingModel.is_failed = True
         return "complete"
@@ -54,7 +55,7 @@ def prepare_context_mapping_generation(state: State) -> State:
 
         merged_bounded_contexts = state.subgraphs.createBoundedContextByFunctionsModel.merged_bounded_contexts
         if not merged_bounded_contexts:
-            raise Exception("No merged bounded contexts available for context mapping generation")
+            raise RuntimeError("No merged bounded contexts available for context mapping generation")
 
         for bounded_context in merged_bounded_contexts:
             model.accumulated_line_number_ranges[bounded_context.name] = []
@@ -77,7 +78,7 @@ def prepare_context_mapping_generation(state: State) -> State:
         model.pending_generations = pending_generations
         LogUtil.add_info_log(state, f"[CONTEXT_MAPPING_SUBGRAPH] Preparation completed. Total context mappings to process: {len(pending_generations)}")
         
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, "[CONTEXT_MAPPING_SUBGRAPH] Failed during context mapping generation preparation", e)
         model.is_failed = True
     
@@ -115,7 +116,7 @@ def select_batch_context_mapping(state: State) -> State:
                     current_batch.append(model.pending_generations.pop(0))
             model.current_batch = current_batch
         
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, "[CONTEXT_MAPPING_SUBGRAPH] Failed to select context mapping batch", e)
         state.subgraphs.createContextMappingModel.is_failed = True
     
@@ -166,7 +167,7 @@ def execute_parallel_workers(state: State) -> State:
                     context_mapping_generation_state.is_failed = True
                     return context_mapping_generation_state
                     
-            except Exception as e:
+            except CATCHABLE_EXCEPTIONS as e:
                 context_mapping_generation_state = model.worker_generations.get(worker_id)
                 worker_index = context_mapping_generation_state.worker_index
                 if context_mapping_generation_state:
@@ -193,7 +194,7 @@ def execute_parallel_workers(state: State) -> State:
                     result_context_mapping = future.result()
                     completed_results.append(result_context_mapping)
                     
-                except Exception as e:
+                except CATCHABLE_EXCEPTIONS as e:
                     worker_index = original_context_mapping.worker_index
                     LogUtil.add_exception_object_log(state, f"[CONTEXT_MAPPING_SUBGRAPH] Failed to get worker result for context mapping at index {worker_index}", e)
                     original_context_mapping.is_failed = True
@@ -209,7 +210,7 @@ def execute_parallel_workers(state: State) -> State:
         
         LogUtil.add_info_log(state, f"[CONTEXT_MAPPING_SUBGRAPH] Parallel execution completed. Successful: {successful_count}, Failed: {failed_count}, Total: {len(completed_results)}")
         
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, "[CONTEXT_MAPPING_SUBGRAPH] Failed during parallel worker execution", e)
         model.is_failed = True
     
@@ -256,7 +257,7 @@ def collect_and_apply_results(state: State) -> State:
         
         LogUtil.add_info_log(state, f"[CONTEXT_MAPPING_SUBGRAPH] Result collection completed. Batch - Successful: {successful_count}, Failed: {failed_count}. Total completed: {total_completed}")
         
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, "[CONTEXT_MAPPING_SUBGRAPH] Failed during result collection and application", e)
         model.is_failed = True
     
@@ -278,7 +279,7 @@ def merge_context_mappings(state: State) -> State:
             return state
 
         if not model.accumulated_line_number_ranges:
-            raise Exception("No referenced context mappings found")
+            raise RuntimeError("No referenced context mappings found")
 
         referenced_context_mappings = CreateContextMappingUtil.get_referenced_context_mappings(
             model.accumulated_line_number_ranges,
@@ -295,7 +296,7 @@ def merge_context_mappings(state: State) -> State:
 
         LogUtil.add_info_log(state, f"[CONTEXT_MAPPING_SUBGRAPH] Merge completed. Total referenced context mappings: {len(referenced_context_mappings)}")
 
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, "[CONTEXT_MAPPING_SUBGRAPH] Failed during merge operation", e)
         model.is_failed = True
 
@@ -338,7 +339,7 @@ def complete_processing(state: State) -> State:
         model.total_seconds = model.end_time - model.start_time
         model.is_processing = False
         
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, "[CONTEXT_MAPPING_SUBGRAPH] Failed during process completion", e)
         model.is_failed = True
     
@@ -377,7 +378,7 @@ def decide_next_step(state: State) -> str:
         # 아무것도 없으면 완료
         return "complete"
     
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, "[CONTEXT_MAPPING_SUBGRAPH] Failed during decide_next_step", e)
         state.subgraphs.createContextMappingModel.is_failed = True
         return "complete"

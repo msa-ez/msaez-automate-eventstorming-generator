@@ -15,6 +15,7 @@ from langchain_core.runnables import RunnableConfig
 from ..models import BaseModelWithItem
 from ..utils import JsonUtil, LoggingUtil
 from ..config import Config
+from eventstorming_generator.utils.catchable_exceptions import CATCHABLE_EXCEPTIONS
 
 
 def init_cache():
@@ -265,7 +266,7 @@ class XmlBaseGenerator(ABC):
                     f"LLM invoke exceeded hard timeout {hard_timeout:.0f}s "
                     f"(model={self.model_name}, generator={class_name})"
                 )
-            except Exception as e:
+            except CATCHABLE_EXCEPTIONS as e:
                 elapsed = time.time() - start
                 LoggingUtil.warning(
                     "xml_base",
@@ -500,7 +501,7 @@ class XmlBaseGenerator(ABC):
 
         try:
             return self.model.get_num_tokens(total_contents)
-        except Exception as e:
+        except CATCHABLE_EXCEPTIONS as e:
             LoggingUtil.warning(
                 "xml_base",
                 f"get_num_tokens 실패 — 글자 수 기반 추정치로 폴백합니다 (원인: {e!r})",

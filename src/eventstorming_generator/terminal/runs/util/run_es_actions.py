@@ -6,6 +6,7 @@ from ..mocks import user_id, project_id, actions_collection, total_actions
 from ...terminal_helper import TerminalHelper
 from ..run_helper import RunHelper
 from .mock_actions_builder import MockActionBuilder
+from eventstorming_generator.utils.catchable_exceptions import CATCHABLE_EXCEPTIONS
 
 def run_es_actions(command_args):
     run_type = ListUtil.get_safely(command_args, 1, None)
@@ -54,7 +55,7 @@ def run_es_actions_with_actions_collection(command_args):
         TerminalHelper.save_dict_to_temp_file(result, run_name)
         RunHelper.save_es_summarize_result_to_temp_file(result, run_name)
 
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LoggingUtil.exception(run_name, "실행 실패", e)
         TerminalHelper.save_dict_to_temp_file(
             {
@@ -73,7 +74,7 @@ def run_es_actions_with_total_actions(command_args):
         TerminalHelper.save_dict_to_temp_file(result, run_name)
         RunHelper.save_es_summarize_result_to_temp_file(result, run_name)
 
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LoggingUtil.exception(run_name, "실행 실패", e)
         TerminalHelper.save_dict_to_temp_file(
             {
@@ -101,7 +102,7 @@ def run_es_actions_with_mocked_actions(command_args):
         TerminalHelper.save_dict_to_temp_file(result, run_name)
         RunHelper.save_es_summarize_result_to_temp_file(result, run_name)
 
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LoggingUtil.exception(run_name, "실행 실패", e)
         TerminalHelper.save_dict_to_temp_file(
             {

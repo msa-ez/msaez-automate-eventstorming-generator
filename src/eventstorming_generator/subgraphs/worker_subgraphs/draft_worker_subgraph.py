@@ -15,6 +15,7 @@ from ...models import DraftGenerationState, State
 from ...utils import JsonUtil, LogUtil
 from ...generators import CreateDraftGeneratorUtil
 from ...config import Config
+from eventstorming_generator.utils.catchable_exceptions import CATCHABLE_EXCEPTIONS
 
 # 스레드로부터 안전한 컨텍스트 변수 생성
 draft_worker_id_context = ContextVar('worker_id', default=None)
@@ -48,7 +49,7 @@ def worker_preprocess_draft(state: State) -> State:
     
     try:
         current_gen.is_preprocess_completed = True
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, f"[DRAFT_WORKER] Preprocessing failed for worker index: {current_gen.worker_index}", e)
         current_gen.is_failed = True
     
@@ -74,7 +75,7 @@ def worker_generate_draft(state: State) -> State:
             job_id=state.inputs.jobId
         )
         current_gen.generation_complete = True
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, f"[DRAFT_WORKER] Failed to generate draft for worker index: {current_gen.worker_index}", e)
         if current_gen:
             current_gen.retry_count += 1
@@ -99,7 +100,7 @@ def worker_postprocess_draft(state: State) -> State:
         
         current_gen.generation_complete = True
     
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, f"[DRAFT_WORKER] Postprocessing failed for worker index: {current_gen.worker_index}", e)
         if current_gen:
             current_gen.retry_count += 1
@@ -123,7 +124,7 @@ def worker_validate_draft(state: State) -> State:
             LogUtil.add_error_log(state, f"[DRAFT_WORKER] Maximum retry count exceeded for worker index: {current_gen.worker_index} (retries: {current_gen.retry_count})")
             current_gen.is_failed = True
         
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, f"[DRAFT_WORKER] Validation failed for worker index: {current_gen.worker_index}", e)
         current_gen.is_failed = True
 
@@ -159,7 +160,7 @@ def worker_decide_next_step(state: State) -> str:
         # 생성된 Draft가 있으면 후처리 단계로 이동
         return "postprocess"
     
-    except Exception as e:
+    except CATCHABLE_EXCEPTIONS as e:
         LogUtil.add_exception_object_log(state, "[DRAFT_WORKER] Failed during worker_decide_next_step", e)
         return "complete"
 
@@ -241,7 +242,7 @@ def create_draft_worker_subgraph():
         try:
             result = State(**compiled_worker.invoke(state, {"recursion_limit": 2147483647}))
             return result
-        except Exception as e:
+        except CATCHABLE_EXCEPTIONS as e:
             LogUtil.add_exception_object_log(state, "[DRAFT_WORKER] Worker execution failed", e)
             current_gen = get_current_generation(state)
             if current_gen:

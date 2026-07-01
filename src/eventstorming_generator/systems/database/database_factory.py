@@ -71,6 +71,6 @@ class DatabaseFactory:
                 password=password
             )
         else:
-            raise Exception(f"Invalid database system type: {db_type}")
+            raise RuntimeError(f"Invalid database system type: {db_type}")
         
         return DatabaseFactory._db_system_instance[db_type]

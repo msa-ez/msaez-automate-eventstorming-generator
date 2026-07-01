@@ -16,10 +16,10 @@ class CreateContextMappingUtil:
             ReferencedContextMapping 리스트
         """
         if not line_number_ranges or len(line_number_ranges) == 0:
-            raise Exception("Line number ranges is empty")
+            raise RuntimeError("Line number ranges is empty")
         
         if not requirements or len(requirements) == 0:
-            raise Exception("Requirements is empty")
+            raise RuntimeError("Requirements is empty")
 
 
         result = []
