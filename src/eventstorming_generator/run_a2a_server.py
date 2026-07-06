@@ -4,6 +4,7 @@ FastAPI 기반 A2A 서버를 시작합니다.
 헬스체크 엔드포인트 및 Push Notification(Webhook) 기능을 포함합니다.
 """
 
+import os
 import httpx
 import uvicorn
 from fastapi import FastAPI
@@ -217,7 +218,20 @@ def create_app(a2a_external_url: str) -> FastAPI:
     
     # 7. FastAPI 앱 가져오기
     app = a2a_app.build()
-    
+
+    # 7-1. Swagger/OpenAPI 문서 노출 비활성화 (모의해킹 A-015: 무단 접근 가능한 API 문서 차단)
+    #      FastAPI 는 기본으로 /docs·/redoc·/openapi.json 를 노출한다. 운영에서는 끈다.
+    #      진단이 필요하면 ENABLE_API_DOCS=true 로 켤 수 있다.
+    if os.getenv("ENABLE_API_DOCS", "false").lower() != "true":
+        app.openapi_url = None
+        app.docs_url = None
+        app.redoc_url = None
+        _docs_route_names = {"swagger_ui_html", "swagger_ui_redirect", "redoc_html", "openapi"}
+        app.router.routes = [
+            r for r in app.router.routes
+            if getattr(r, "name", None) not in _docs_route_names
+        ]
+
     # 8. CORS 설정
     app.add_middleware(
         CORSMiddleware,
