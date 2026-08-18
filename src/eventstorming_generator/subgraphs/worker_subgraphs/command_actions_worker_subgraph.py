@@ -144,6 +144,11 @@ def worker_generate_command_actions(state: State) -> State:
             if missing_events or missing_commands or missing_read_models:
                 if current_gen.retry_count < state.subgraphs.createCommandActionsByFunctionModel.max_retry_count:
                     current_gen.retry_count += 1
+                    # 재시도로 넘어가더라도 이번에 파싱된 액션은 남겨둔다.
+                    # 이후 시도가 예외(타임아웃 등)로 끝나면 이 부분 결과라도 살릴 수 있다.
+                    # 과거에는 전부 버려서 Aggregate 하나가 통째로 비는 결과가 나왔다.
+                    # created_actions 에 넣으면 decide 가 곧장 후처리로 보내 재시도가 사라지므로 분리 보관.
+                    current_gen.fallback_actions = actionModels
                     LogUtil.add_error_log(state, f"[COMMAND_ACTIONS_WORKER] Missing required elements for aggregate '{aggregate_name}': {missing_events} {missing_commands} {missing_read_models}. Retrying generation (attempt {current_gen.retry_count})")
                     return state
                 else:
@@ -190,16 +195,27 @@ def worker_postprocess_command_actions(state: State) -> State:
             # 후처리 실패시에도 계속 진행하되, 에러 로그를 남김
         
         # 유효한 액션만 필터링
+        # 단계별 개수를 남긴다. 과거 '구독' Aggregate 처럼 결과가 통째로 비는 사례에서
+        # 어느 필터가 액션을 전부 걷어냈는지 사후 특정할 방법이 없었다.
+        generated_count = len(current_gen.created_actions or [])
         actions = filter_valid_actions(current_gen.created_actions)
+        valid_count = len(actions)
         
         # UUID 변환 처리
         actions = EsAliasTransManager(es_value).trans_to_uuid_in_actions(actions)
+        uuid_count = len(actions)
         
         # 액션 복원 작업 (boundedContextId 추가 등)
         actions = restore_actions(actions, es_value, current_gen.target_bounded_context_name)
+        restored_count = len(actions)
         
         # 기존 요소와 중복되는 액션 필터링
         actions = filter_actions(actions, es_value)
+        
+        if not actions:
+            LogUtil.add_error_log(state, f"[COMMAND_ACTIONS_WORKER] All actions were filtered out for aggregate '{aggregate_name}' in context '{bc_name}' (generated={generated_count}, valid={valid_count}, uuid={uuid_count}, restored={restored_count}, final=0)")
+        else:
+            LogUtil.add_info_log(state, f"[COMMAND_ACTIONS_WORKER] Action pipeline for aggregate '{aggregate_name}': generated={generated_count}, valid={valid_count}, uuid={uuid_count}, restored={restored_count}, final={len(actions)}")
         
         # 처리된 액션 저장
         current_gen.created_actions = actions
@@ -250,8 +266,18 @@ def worker_decide_next_step(state: State) -> str:
             LogUtil.add_error_log(state, "[COMMAND_ACTIONS_WORKER] No current generation found in decide_next_step")
             return "complete"
 
-        # 실패 혹은 최대 재시도 횟수 초과 시 완료
+        # 실패 혹은 최대 재시도 횟수 초과 시 완료.
+        # 단, 아직 후처리를 못 거친 생성 결과가 남아있다면 그것만이라도 반영하고 끝낸다.
+        # (collect_and_apply_results 는 generation_complete + created_actions 를 요구하므로,
+        #  여기서 바로 complete 로 가면 마지막 시도에서 뽑아둔 액션이 통째로 버려진다)
         if current_gen.is_failed or current_gen.retry_count > state.subgraphs.createCommandActionsByFunctionModel.max_retry_count:
+            if not current_gen.generation_complete:
+                if not current_gen.created_actions and current_gen.fallback_actions:
+                    current_gen.created_actions = current_gen.fallback_actions
+                    current_gen.fallback_actions = []
+                if current_gen.created_actions:
+                    LogUtil.add_error_log(state, f"[COMMAND_ACTIONS_WORKER] Retry limit reached for aggregate '{current_gen.target_aggregate_name}'. Applying partial result ({len(current_gen.created_actions)} actions)")
+                    return "postprocess"
             return "complete"
 
         # 현재 작업이 완료되었으면 완료
@@ -300,6 +326,9 @@ def create_command_actions_worker_subgraph():
         {
             "preprocess": "preprocess",
             "generate": "generate",
+            # decide 가 부분 결과 반영을 위해 postprocess 를 돌려줄 수 있으므로 경로를 열어둔다
+            # (매핑에 없으면 LangGraph 가 KeyError 로 워커를 통째로 죽인다)
+            "postprocess": "postprocess",
             "complete": "complete"
         }
     )

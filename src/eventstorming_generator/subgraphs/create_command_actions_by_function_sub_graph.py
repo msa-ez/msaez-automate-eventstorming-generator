@@ -277,7 +277,12 @@ def collect_and_apply_results(state: State) -> State:
                 all_actions.extend(command_result.created_actions)
             else:
                 failed_aggregates.append(command_result)
-                LogUtil.add_error_log(state, f"[COMMAND_ACTIONS_SUBGRAPH] Aggregate '{aggregate_name}' in context '{bc_name}' failed or has no actions")
+                # 잡 전체는 정상 종료되므로, 여기서 기록해두지 않으면 사용자는 특정 Aggregate 의
+                # command/event/readModel 이 통째로 비어있는 것을 캔버스에서 눈으로 찾아야 한다.
+                target_label = f"{bc_name} / {aggregate_name} (commands)"
+                if target_label not in state.outputs.incompleteTargets:
+                    state.outputs.incompleteTargets.append(target_label)
+                LogUtil.add_error_log(state, f"[COMMAND_ACTIONS_SUBGRAPH] Aggregate '{aggregate_name}' in context '{bc_name}' failed or has no actions (complete={command_result.generation_complete}, actions={len(command_result.created_actions or [])}, retries={command_result.retry_count})")
         
         # ES 모델에 모든 액션 일괄 적용
         if all_actions:   

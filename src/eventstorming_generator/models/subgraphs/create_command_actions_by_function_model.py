@@ -18,6 +18,10 @@ class CommandActionGenerationState(BaseModelWithItem):
 
     summarized_es_value: Dict[str, Any] = Field(default_factory=dict)
     created_actions: List[ActionModel] = Field(default_factory=list)
+    # 필수 요소 누락으로 재시도할 때 직전 시도의 액션을 보관.
+    # 이후 시도가 예외로 끝나면 이 값이라도 반영해 Aggregate 가 통째로 비는 것을 막는다.
+    # created_actions 와 분리하지 않으면 재시도 판정(액션이 있으면 후처리로 이동)이 깨진다.
+    fallback_actions: List[ActionModel] = Field(default_factory=list)
 
     retry_count: int = 0
     generation_complete: bool = False
