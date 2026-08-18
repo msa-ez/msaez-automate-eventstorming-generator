@@ -4,6 +4,11 @@ from ..models import CreateCommandActionsByFunctionOutput
 from ..utils import EsTraceUtil, XmlUtil
 
 class CreateCommandActionsByFunction(XmlBaseGenerator):
+    # Aggregate 하나당 커맨드/이벤트/ReadModel 12~15개를 한 번에 뽑아 출력량이 가장 큰 단계.
+    # 실측 평균 70~80s, 최대 119s 로 공통 하드 타임아웃 180s 에 근접해, 큰 Aggregate 는
+    # 타임아웃으로 재시도를 소진하고 하위 요소가 0개가 되는 사례가 있었다.
+    hard_timeout_sec = 300
+
     def __init__(self, model_name: str, model_kwargs: Optional[Dict[str, Any]] = None, client: Optional[Dict[str, Any]] = None):
         self.inputs_types_to_check = ["summarizedESValue", "description", "targetBoundedContextName", "targetAggregateName", "eventNamesToGenerate", "commandNamesToGenerate", "readModelNamesToGenerate"]
         super().__init__(model_name, CreateCommandActionsByFunctionOutput, model_kwargs, client)

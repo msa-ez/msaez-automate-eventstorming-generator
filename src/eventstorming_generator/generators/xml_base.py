@@ -223,6 +223,19 @@ class XmlBaseGenerator(ABC):
         hard_timeout_env = os.getenv("LLM_HARD_TIMEOUT_SEC")
         hard_timeout = float(hard_timeout_env) if hard_timeout_env else soft_timeout * 1.5
 
+        # 생성기별 상향. 커맨드 단계처럼 한 번에 12~15개 요소를 뽑는 곳은 출력량 때문에
+        # 평균 70~80s, 최대 120s 가 나와 공통 180s 한도에 걸려 통째로 실패하는 사례가 있었다
+        # (ConfigurationSetting Aggregate — 타임아웃 2회로 하위 요소 0개).
+        # 클래스 속성(hard_timeout_sec)은 "이 단계는 최소 이만큼 필요하다"는 의미이므로
+        # 전역 설정보다 낮추지는 않는다. 운영에서 즉시 조정할 수 있게 생성기별 env 도 지원.
+        per_generator_env = os.getenv(f"LLM_HARD_TIMEOUT_SEC_{class_name}")
+        if per_generator_env:
+            hard_timeout = float(per_generator_env)
+        else:
+            generator_minimum = getattr(self, "hard_timeout_sec", None)
+            if generator_minimum:
+                hard_timeout = max(hard_timeout, float(generator_minimum))
+
         prompt_chars = 0
         for m in messages:
             content = getattr(m, "content", "")
@@ -425,7 +438,10 @@ class XmlBaseGenerator(ABC):
             # 기본 타임아웃 — 사내 프록시(P-GPT 등) 가 silent hang 되는 경우에도
             # 일정 시간 안에 예외가 발생해 외부 retry 로직(retryCount 기반 temperature 상승)
             # 으로 흐르도록 한다. 환경변수 LLM_TIMEOUT_SEC 로 덮어쓸 수 있다.
-            timeout_sec = float(os.getenv("LLM_TIMEOUT_SEC", "120"))
+            # 클라이언트 자체 타임아웃이 하드 래퍼보다 짧으면, 오래 걸리는 단계가 래퍼의
+            # 상향 설정을 써보지도 못하고 잘린다. 실제로 커맨드 단계 성공 호출이 119s 까지
+            # 나와 기본 120s 에 턱걸이했다. 최종 방어선은 하드 래퍼이므로 여기는 넉넉히 둔다.
+            timeout_sec = float(os.getenv("LLM_CLIENT_TIMEOUT_SEC", os.getenv("LLM_TIMEOUT_SEC", "300")))
             init_kwargs.setdefault("timeout", timeout_sec)
 
             # 출력 토큰 상한 — 미지정 시 OpenAI 가 응답 generation 단계에서 hang 되는
