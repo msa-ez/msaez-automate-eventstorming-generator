@@ -51,10 +51,12 @@ class CreateCommandActionsByFunction(XmlBaseGenerator):
                 - Events: Noun + Past Participle (e.g., OrderCreated)
                 - ReadModels: Noun + Purpose (e.g., OrderSummary)
             </rule>
-            <rule id="5">**HTTP Verbs:**
+            <rule id="5">**HTTP Verbs:** `api_verb` MUST be exactly one of POST, PUT or DELETE. GET is NOT allowed.
                 - POST for Create* commands.
                 - PUT for Update*/Modify* commands.
                 - DELETE for Delete*/Remove* commands.
+                - A read-only lookup is NOT a command. Express it as a readModelAction instead of using GET.
+                - If none of the three verbs fits, still choose the closest one (default POST) — never emit GET.
             </rule>
             <rule id="6">**Command/Event Logic:** Each command must have a corresponding event. Events should contain all relevant data for state changes.</rule>
             <rule id="7">**Avoid:** Do not include comments in the output JSON. Do not create duplicate elements.</rule>
