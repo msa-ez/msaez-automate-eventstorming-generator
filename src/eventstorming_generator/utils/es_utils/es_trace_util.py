@@ -591,7 +591,7 @@ class EsTraceUtil:
         # narrative 라인 ('> *As a ...') 우선, 없으면 첫 content 라인.
         import re as _re
         us_index = {}
-        us_header_re = _re.compile(r'^\s*#{4,6}\s+\[([A-Za-z][\w-]*US-(?:FR|NFR)-\d+)\]')
+        us_header_re = _re.compile(r'^\s*#{4,6}\s+\[((?:[A-Za-z][\w-]*-)?US-(?:FR|NFR)-\d+)\]')
         narrative_re = _re.compile(r'^\s*>\s*\*?\s*As a')
         for i, ln in enumerate(lines):
             m = us_header_re.match(ln or '')
@@ -639,7 +639,7 @@ class EsTraceUtil:
         def _extract_us_id(text):
             if not text: return None
             # 브래킷 optional — TOC 표 row 는 브래킷 없이 PROJ-US-FR-XXX 만 나옴
-            m = _re.search(r'\[?([A-Za-z][\w-]*US-(?:FR|NFR)-\d+)\]?', text)
+            m = _re.search(r'\[?((?:[A-Za-z][\w-]*-)?US-(?:FR|NFR)-\d+)\]?', text)
             return m.group(1) if m else None
 
         def _line_to_full_range(line_num):
